@@ -27,6 +27,14 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-13
+
+- Branches updated: `master`.
+- Submodule commit(s): `c527da39a` - `subaru: smooth low-speed angle steering below 10mph`
+- Why changed: promote low-speed angle smoothing (0-10 mph) into stable Subaru lateral path to reduce twitchy left-right corrections.
+- Validation done: `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py`.
+- Known risks: requires in-car validation to confirm no regression in low-speed LKAS fault behavior.
+
 ### 2026-03-06
 
 #### Superproject commits
