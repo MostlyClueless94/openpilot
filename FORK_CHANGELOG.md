@@ -4,16 +4,15 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Active Install URLs
 
-- Stable 3X: `https://install.sunnypilot.ai/fork/MostlyClueless94/master`
-- Stable C4: `https://install.sunnypilot.ai/fork/MostlyClueless94/master-tici`
-- Alpha (staging/testing): `https://install.sunnypilot.ai/fork/MostlyClueless94/alpha`
+- Stable: `https://installer.comma.ai/MostlyClueless94/master`
+- Testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
 
 ## Branch Policy
 
-- `master`: primary stable install branch for comma 3X.
-- `master-tici`: comma 4 compatible mirror of `master`.
-- `alpha`: staging branch for new Subaru changes before promoting to `master`.
-- Current state on 2026-03-06: `master` and `alpha` point to the same superproject commit (`f0b31f1`).
+- `master`: primary stable/public install branch.
+- `MostlyClueless`: personal testing branch before promoting changes to `master`.
+- `master-tici` and `staging` are retired and should not be used.
+- Do not use `-tici` branches on comma four.
 
 ## Current Commit Map (2026-03-06)
 
@@ -31,16 +30,24 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ### 2026-03-17
 
-- Branches updated: `master`, `master-tici`.
-- Why changed: add a comma 4 compatible stable branch name without changing Subaru or hardware logic.
-- Mirror rule: `master-tici` is a strict mirror of `master`, including the same `opendbc_repo` pointer.
+- Branches updated: `master`.
+- Why changed: reset the public branch surface to only `master` and `MostlyClueless`.
+- Branch policy update:
+  - `alpha` is being retired in favor of `MostlyClueless`
+  - `master-tici` is retired to avoid unsafe installs on comma four
+  - `staging` is retired to match the actual two-lane workflow
 - Install guidance:
-  - comma 3X users should install `master`
-  - comma 4 users should install `master-tici`
+  - stable installs should use `master`
+  - personal testing installs should use `MostlyClueless`
+  - no `-tici` branch should be used for comma four
 - Validation done:
-  - confirmed `master` points to `opendbc_repo` commit `c527da39a`
-  - confirmed SunnyPilot classifies `master-tici` as `channel_type == "tici"` by existing branch naming rules
-  - confirmed existing installer/updater migration logic already maps TICI `master` -> `master-tici`
+  - confirmed `master` remains on `opendbc_repo` commit `c527da39a`
+  - branch cleanup and remote ref removal verified separately after push
+
+### 2026-03-17
+
+- Historical note: the earlier `master-tici` mirror guidance from 2026-03-17 is retired and should no longer be used.
+- Current guidance is the branch reset entry above: use `master` for stable installs and `MostlyClueless` for personal testing only.
 
 ### 2026-03-13
 
@@ -96,7 +103,7 @@ Use this section format for every future update:
 
 ```
 ### YYYY-MM-DD
-- Branches updated: <master|alpha|both>
+- Branches updated: <master|MostlyClueless|both>
 - Superproject commit(s): <hash> - <message>
 - Submodule commit(s): <hash> - <message>
 - Why changed: <short reason>
