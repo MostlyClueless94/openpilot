@@ -29,6 +29,15 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 ## Changelog
 
+### 2026-03-18
+
+- Branches updated: `master`.
+- Submodule commit(s): `b9f363c84` - `subaru: yield mads angle control during manual steering`
+- Why changed: promote the Subaru MADS manual-steer yield behavior from `MostlyClueless` to `master` so tight manual turns no longer fight the driver during MADS-only lateral use.
+- Scope: lateral-only Subaru angle control; no longitudinal changes and no change to full engaged lateral behavior.
+- Validation done: `python -m py_compile opendbc_repo/opendbc/car/subaru/carcontroller.py`.
+- Known risks: still needs in-car confirmation for steering feel and smooth resume after the driver releases the wheel.
+
 ### 2026-03-17 (Branch Surface Reset)
 
 #### Branch target
