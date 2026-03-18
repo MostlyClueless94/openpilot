@@ -11,43 +11,45 @@ This file tracks all custom fork changes for Subaru angle-LKAS support and relat
 
 - `master`: primary stable/public install branch.
 - `MostlyClueless`: personal testing branch before promoting changes to `master`.
-- `master-tici` and `staging` are retired and should not be used.
+- Only `master` and `MostlyClueless` should be used as install branches.
 - Do not use `-tici` branches on comma four.
 
-## Current Commit Map (2026-03-06)
+## Current Commit Map (2026-03-17)
 
 ### Superproject (`MostlyClueless94/sunnypilot`)
 
-- `master` -> `f0b31f163fb10d7fd9e92661b2b7d10f23e286bb`
-- `alpha` -> `f0b31f163fb10d7fd9e92661b2b7d10f23e286bb`
+- `master` -> `ca32db6c5eb8799d2d2c04d029afc181e5e6e897`
+- `MostlyClueless` -> `7498ce404745e3a4acb49dab8498e9813a8eaf91`
 
 ### Submodule (`opendbc_repo`)
 
-- In-tree pointer: `72981fd0876c69401e6cdf4fe78d732eb0c65d41` (`opendbc-alpha-submodule`)
+- `master` pointer: `c527da39a561f598f744e6acce4133d00f346bf3` (`opendbc-master-low-speed-smooth`)
+- `MostlyClueless` pointer: `2b55f05633e0f6662e2776494e643da96b384486` (`opendbc-mostlyclueless`)
 - Reference tag for pre-mitigation state: `5e57cb77dd1ec5843bcf841ff465b2fa3ece9632` (`opendbc-master-submodule`)
 
 ## Changelog
 
-### 2026-03-17
+### 2026-03-17 (Branch Surface Reset)
 
-- Branches updated: `master`.
-- Why changed: reset the public branch surface to only `master` and `MostlyClueless`.
-- Branch policy update:
-  - `alpha` is being retired in favor of `MostlyClueless`
-  - `master-tici` is retired to avoid unsafe installs on comma four
-  - `staging` is retired to match the actual two-lane workflow
-- Install guidance:
+#### Branch target
+
+- `master` stable lane + shared public guidance
+
+#### What changed
+
+- Renamed the personal testing branch from `alpha` to `MostlyClueless`.
+- Reduced the public branch surface to a strict two-lane workflow.
+- Removed the extra public testing variants that were no longer part of the intended install flow.
+- Updated install guidance:
   - stable installs should use `master`
   - personal testing installs should use `MostlyClueless`
   - no `-tici` branch should be used for comma four
-- Validation done:
-  - confirmed `master` remains on `opendbc_repo` commit `c527da39a`
-  - branch cleanup and remote ref removal verified separately after push
 
-### 2026-03-17
+#### Validation done
 
-- Historical note: the earlier `master-tici` mirror guidance from 2026-03-17 is retired and should no longer be used.
-- Current guidance is the branch reset entry above: use `master` for stable installs and `MostlyClueless` for personal testing only.
+- Confirmed the stable lane remains on `opendbc_repo` commit `c527da39a`.
+- Confirmed the testing lineage remains on `opendbc_repo` commit `2b55f0563`.
+- Branch cleanup and remote ref removal verified separately after push.
 
 ### 2026-03-13
 
