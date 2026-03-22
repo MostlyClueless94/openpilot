@@ -14,7 +14,7 @@ from openpilot.system.ui.widgets import Widget
 CHEVRON_INFO_DESCRIPTION = {
   "enabled": tr_noop("Display useful metrics below the chevron that tracks the lead car " +
                      "when lead vehicle data is available."),
-  "disabled": tr_noop("This feature requires lead vehicle data to be available on your car.")
+  "disabled": tr_noop("This feature becomes available once your car has been identified.")
 }
 
 
@@ -144,7 +144,7 @@ class VisualsLayout(Widget):
       self._chevron_info.action_item.set_enabled(False)
 
   def _chevron_info_available(self) -> bool:
-    return ui_state.CP is not None and not ui_state.CP.radarUnavailable
+    return ui_state.CP is not None
 
   def _render(self, rect):
     self._scroller.render(rect)
