@@ -13,8 +13,8 @@ from openpilot.system.ui.widgets import Widget
 
 CHEVRON_INFO_DESCRIPTION = {
   "enabled": tr_noop("Display useful metrics below the chevron that tracks the lead car " +
-                     "only applicable to cars with sunnypilot longitudinal control."),
-  "disabled": tr_noop("This feature requires sunnypilot longitudinal control to be available.")
+                     "when lead vehicle data is available."),
+  "disabled": tr_noop("This feature requires lead vehicle data to be available on your car.")
 }
 
 
@@ -135,20 +135,22 @@ class VisualsLayout(Widget):
 
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
 
-    if ui_state.has_longitudinal_control:
+    if self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["enabled"]))
       self._chevron_info.action_item.set_selected_button(ui_state.params.get("ChevronInfo", return_default=True))
       self._chevron_info.action_item.set_enabled(True)
     else:
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["disabled"]))
       self._chevron_info.action_item.set_enabled(False)
-      ui_state.params.put("ChevronInfo", 0)
+
+  def _chevron_info_available(self) -> bool:
+    return ui_state.CP is not None and not ui_state.CP.radarUnavailable
 
   def _render(self, rect):
     self._scroller.render(rect)
 
   def show_event(self):
     self._scroller.show_event()
-    if not ui_state.has_longitudinal_control:
+    if not self._chevron_info_available():
       self._chevron_info.set_description(tr(CHEVRON_INFO_DESCRIPTION["disabled"]))
       self._chevron_info.show_description(True)
