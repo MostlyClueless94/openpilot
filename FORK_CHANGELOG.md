@@ -13,6 +13,25 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
 - `MostlyClueless`: current-upstream integration/testing branch.
 - Longitudinal experimentation is intentionally excluded from this rebuilt branch line.
 
+## 2026-03-23 (Dynamic Path Color Setting)
+
+### What changed
+
+- Added a new `Dynamic Path Color` Visuals setting on `MostlyClueless`.
+- The path now follows drive mode when enabled:
+  - gray for disengaged and override
+  - blue for MADS steering-only
+  - green for full active states
+- Experimental path coloring keeps priority.
+- Dynamic Path Color overrides Rainbow Mode while enabled.
+
+### Validation Done
+
+- `python -m py_compile selfdrive/ui/sunnypilot/layouts/settings/visuals.py`
+- `python -m py_compile selfdrive/ui/sunnypilot/ui_state.py`
+- `python -m py_compile selfdrive/ui/onroad/model_renderer.py`
+- `python -m py_compile selfdrive/ui/mici/onroad/model_renderer.py`
+
 ## 2026-03-21 (MostlyClueless Lateral Sensitivity Rollback)
 
 ### Why

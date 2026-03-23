@@ -45,6 +45,13 @@ class VisualsLayout(Widget):
            "It does not affect driving in any way."),
         None,
       ),
+      "DynamicPathColor": (
+        lambda: tr("Dynamic Path Color"),
+        tr("Color the driving path by drive mode. " +
+           "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
+           "This overrides Rainbow Mode and leaves Experimental path coloring unchanged."),
+        None,
+      ),
       "StandstillTimer": (
         lambda: tr("Enable Standstill Timer"),
         tr("Show a timer on the HUD when the car is at a standstill."),

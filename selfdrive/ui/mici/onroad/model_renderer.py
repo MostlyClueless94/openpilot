@@ -30,6 +30,26 @@ NO_THROTTLE_COLORS = [
   rl.Color(242, 242, 242, 0),   # HSLF(112/360, 0.0, 0.95, 0.0)
 ]
 
+GRAY_PATH_COLORS = [
+  rl.Color(170, 170, 170, 102),
+  rl.Color(205, 205, 205, 89),
+  rl.Color(205, 205, 205, 0),
+]
+
+BLUE_PATH_COLORS = [
+  rl.Color(46, 132, 255, 102),
+  rl.Color(96, 173, 255, 89),
+  rl.Color(96, 173, 255, 0),
+]
+
+DYNAMIC_PATH_COLORS = {
+  UIStatus.DISENGAGED: GRAY_PATH_COLORS,
+  UIStatus.OVERRIDE: GRAY_PATH_COLORS,
+  UIStatus.LAT_ONLY: BLUE_PATH_COLORS,
+  UIStatus.LONG_ONLY: THROTTLE_COLORS,
+  UIStatus.ENGAGED: THROTTLE_COLORS,
+}
+
 LANE_LINE_COLORS = {
   UIStatus.DISENGAGED: rl.Color(200, 200, 200, 255),
   UIStatus.OVERRIDE: rl.Color(255, 255, 255, 255),
@@ -148,9 +168,10 @@ class ModelRenderer(Widget, ModelRendererSP):
         self._update_leads(radar_state, path_x_array)
       self._transform_dirty = False
 
-    # Draw elements (hide when disengaged)
+    # Draw elements. Dynamic path color still shows the path while disengaged.
     if ui_state.status != UIStatus.DISENGAGED:
       self._draw_lane_lines()
+    if ui_state.status != UIStatus.DISENGAGED or ui_state.dynamic_path_color:
       self._draw_path(sm)
 
     # if render_lead_indicator and radar_state:
@@ -341,10 +362,6 @@ class ModelRenderer(Widget, ModelRendererSP):
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
     self._blend_filter.update(int(allow_throttle))
 
-    if ui_state.rainbow_path:
-      self.rainbow_path.draw_rainbow_path(self._rect, self._path)
-      return
-
     if self._experimental_mode:
       # Draw with acceleration coloring
       if ui_state.status == UIStatus.DISENGAGED:
@@ -353,21 +370,36 @@ class ModelRenderer(Widget, ModelRendererSP):
         draw_polygon(self._rect, self._path.projected_points, gradient=self._exp_gradient)
       else:
         draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
-    else:
-      # Blend throttle/no throttle colors based on transition
-      blend_factor = round(self._blend_filter.x * 100) / 100
-      blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
+      return
+
+    if ui_state.dynamic_path_color:
       gradient = Gradient(
-        start=(0.0, 1.0),  # Bottom of path
-        end=(0.0, 0.0),  # Top of path
-        colors=blended_colors,
+        start=(0.0, 1.0),
+        end=(0.0, 0.0),
+        colors=DYNAMIC_PATH_COLORS.get(ui_state.status, GRAY_PATH_COLORS),
         stops=[0.0, 0.5, 1.0],
       )
+      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+      return
 
-      if ui_state.status == UIStatus.DISENGAGED:
-        draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
-      else:
-        draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+    if ui_state.rainbow_path:
+      self.rainbow_path.draw_rainbow_path(self._rect, self._path)
+      return
+
+    # Blend throttle/no throttle colors based on transition
+    blend_factor = round(self._blend_filter.x * 100) / 100
+    blended_colors = self._blend_colors(NO_THROTTLE_COLORS, THROTTLE_COLORS, blend_factor)
+    gradient = Gradient(
+      start=(0.0, 1.0),  # Bottom of path
+      end=(0.0, 0.0),  # Top of path
+      colors=blended_colors,
+      stops=[0.0, 0.5, 1.0],
+    )
+
+    if ui_state.status == UIStatus.DISENGAGED:
+      draw_polygon(self._rect, self._path.projected_points, rl.Color(0, 0, 0, 90))
+    else:
+      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
 
   def _draw_lead_indicator(self):
     # Draw lead vehicles if available

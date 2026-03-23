@@ -224,6 +224,10 @@
     "title": "Developer UI Info",
     "description": ""
   },
+  "DynamicPathColor": {
+    "title": "Dynamic Path Color",
+    "description": "Color the driving path by drive mode. Overrides Rainbow Mode and keeps Experimental path coloring unchanged."
+  },
   "DeviceBootMode": {
     "title": "Device Boot Mode",
     "description": "",
