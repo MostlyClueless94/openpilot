@@ -301,21 +301,21 @@ class ModelRenderer(Widget, ChevronMetrics, ModelRendererSP):
         draw_polygon(self._rect, self._path.projected_points, rl.Color(255, 255, 255, 30))
       return
 
-    if ui_state.custom_model_path_color:
-      gradient = Gradient(
-        start=(0.0, 1.0),
-        end=(0.0, 0.0),
-        colors=CUSTOM_MODEL_PATH_COLOR_PRESETS[ui_state.custom_model_path_color],
-        stops=PATH_GRADIENT_STOPS,
-      )
-      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
-      return
-
     if ui_state.dynamic_path_color:
       gradient = Gradient(
         start=(0.0, 1.0),
         end=(0.0, 0.0),
         colors=DYNAMIC_PATH_COLORS.get(ui_state.status, NO_THROTTLE_COLORS),
+        stops=PATH_GRADIENT_STOPS,
+      )
+      draw_polygon(self._rect, self._path.projected_points, gradient=gradient)
+      return
+
+    if ui_state.custom_model_path_color:
+      gradient = Gradient(
+        start=(0.0, 1.0),
+        end=(0.0, 0.0),
+        colors=CUSTOM_MODEL_PATH_COLOR_PRESETS[ui_state.custom_model_path_color],
         stops=PATH_GRADIENT_STOPS,
       )
       draw_polygon(self._rect, self._path.projected_points, gradient=gradient)

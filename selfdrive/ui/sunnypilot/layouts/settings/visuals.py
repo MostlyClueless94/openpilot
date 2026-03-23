@@ -50,8 +50,8 @@ class VisualsLayout(Widget):
         lambda: tr("Dynamic Path Color"),
         tr("Color the driving path by drive mode. " +
            "Gray when inactive or overriding, blue for steering-only, and green for full control. " +
-           "This uses BluePilot-matched blue/green shades, overrides Rainbow Mode, " +
-           "and is overridden by Custom Model Path Color. Experimental path coloring stays unchanged."),
+           "This uses BluePilot-matched blue/green shades, overrides both Rainbow Mode " +
+           "and Custom Model Path Color, and keeps Experimental path coloring unchanged."),
         None,
       ),
       "StandstillTimer": (
@@ -125,7 +125,8 @@ class VisualsLayout(Widget):
       title=lambda: tr("Custom Model Path Color"),
       description=lambda: tr("Use BluePilot-style preset colors for the driving path overlay. "
                              "Stock keeps the normal path behavior. "
-                             "When a preset is selected, it overrides Dynamic Path Color and Rainbow Mode."),
+                             "When a preset is selected, it overrides Rainbow Mode. "
+                             "Dynamic Path Color still takes priority when enabled."),
       buttons=[lambda label=label: tr(label) for label in CUSTOM_MODEL_PATH_COLOR_LABELS],
       param="CustomModelPathColor",
       button_width=160,

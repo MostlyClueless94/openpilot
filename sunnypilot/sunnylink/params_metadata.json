@@ -200,7 +200,7 @@
   },
   "CustomModelPathColor": {
     "title": "Custom Model Path Color",
-    "description": "Use BluePilot-style preset colors for the driving path overlay. Overrides Dynamic Path Color and Rainbow Mode when set to anything other than Stock.",
+    "description": "Use BluePilot-style preset colors for the driving path overlay. Overrides Rainbow Mode when set to anything other than Stock. Dynamic Path Color still takes priority when enabled.",
     "options": [
       { "value": 0, "label": "Stock" },
       { "value": 1, "label": "Blue" },
@@ -240,7 +240,7 @@
   },
   "DynamicPathColor": {
     "title": "Dynamic Path Color",
-    "description": "Color the driving path by drive mode. Overrides Rainbow Mode and keeps Experimental path coloring unchanged."
+    "description": "Color the driving path by drive mode. Overrides Custom Model Path Color and Rainbow Mode, and keeps Experimental path coloring unchanged."
   },
   "DeviceBootMode": {
     "title": "Device Boot Mode",

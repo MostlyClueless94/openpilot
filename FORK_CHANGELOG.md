@@ -24,6 +24,7 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
   - green for full active states
 - Experimental path coloring keeps priority.
 - Dynamic Path Color overrides Rainbow Mode while enabled.
+- Dynamic Path Color also overrides Custom Model Path Color while enabled.
 - Added a BluePilot-style `Custom Model Path Color` selector with preset colors:
   - Stock
   - Blue
@@ -34,7 +35,7 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
   - Cyan
   - Yellow
 - Dynamic Path Color now uses BluePilot-matched blue/green shades and the stock BluePilot grayscale.
-- Custom Model Path Color overrides both Dynamic Path Color and Rainbow Mode when a preset is selected.
+- Custom Model Path Color overrides Rainbow Mode when a preset is selected, unless Dynamic Path Color is enabled.
 
 ### Validation Done
 
