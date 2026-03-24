@@ -1,0 +1,36 @@
+name: Mirror Selected Branches
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to mirror from MostlyClueless94/sunnypilot
+        required: true
+        default: MostlyClueless
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch
+        run: |
+          case "${{ inputs.branch }}" in
+            MostlyClueless|mc-1.0)
+              ;;
+            *)
+              echo "Unsupported branch: ${{ inputs.branch }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Mirror source branch
+        run: |
+          git init mirror
+          cd mirror
+          git remote add source https://github.com/MostlyClueless94/sunnypilot.git
+          git fetch --no-tags --prune source "refs/heads/${{ inputs.branch }}:refs/remotes/source/${{ inputs.branch }}"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            "refs/remotes/source/${{ inputs.branch }}:refs/heads/${{ inputs.branch }}" --force
