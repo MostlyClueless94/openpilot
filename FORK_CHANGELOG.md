@@ -4,13 +4,15 @@ This file tracks the maintained Subaru patch queue that sits on top of current S
 
 ## Active Install URLs
 
-- Stable: `https://install.sunnypilot.ai/fork/MostlyClueless94/master`
-- Testing: `https://install.sunnypilot.ai/fork/MostlyClueless94/MostlyClueless`
+- Stable: `https://installer.comma.ai/MostlyClueless94/subi-0.9`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
 
 ## Branch Policy
 
-- `master`: stable/public branch, updated only after validating `MostlyClueless`.
-- `MostlyClueless`: current-upstream integration/testing branch.
+- `subi-0.9`: stable public release lane.
+- `subi-staging`: broad public testing lane for the next release.
+- `MostlyClueless`: personal integration/testing branch.
 - Longitudinal experimentation is intentionally excluded from this rebuilt branch line.
 
 ## 2026-03-23 (Dynamic Path Color Setting)
