@@ -1,13 +1,23 @@
-# MostlyClueless94 openpilot mirror
+# SubiPilot openpilot mirror
 
-This repository is the installer-facing mirror for selected public branches from:
+This repository is the installer-facing mirror for the public SubiPilot branches from:
 
 - `https://github.com/MostlyClueless94/sunnypilot`
 
-Current intended use:
+Current public branch surface:
 
-- `MostlyClueless` for comma 3X / comma 4 install testing
-- future `mc-1.0` release publication
+- `subi-0.9` for the current stable public release
+- `subi-staging` for broad public testing ahead of the next release
+- `MostlyClueless` for personal testing installs
+- future `subi-1.0` release publication
+
+Canonical install URLs:
+
+- `https://installer.comma.ai/MostlyClueless94/subi-0.9`
+- `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
 
 The default branch contains only repository administration files.
 Public install branches are mirrored separately and should match the source branch exactly.
+
+The separate `long` branch remains experimental and is not mirrored here as part of the public SubiPilot release flow.

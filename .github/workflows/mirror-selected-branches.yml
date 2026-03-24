@@ -6,7 +6,7 @@ on:
       branch:
         description: Branch to mirror from MostlyClueless94/sunnypilot
         required: true
-        default: MostlyClueless
+        default: subi-staging
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
       - name: Validate branch
         run: |
           case "${{ inputs.branch }}" in
-            MostlyClueless|mc-1.0)
+            MostlyClueless|subi-staging|subi-0.9|subi-1.0)
               ;;
             *)
               echo "Unsupported branch: ${{ inputs.branch }}"
