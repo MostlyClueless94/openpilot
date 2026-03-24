@@ -1,18 +1,42 @@
-# MostlyClueless94 SunnyPilot Subaru Fork Changelog
+# SubiPilot Changelog
 
-This file tracks all custom fork changes for Subaru angle-LKAS support and related fixes.
+This file tracks the public SubiPilot branch surface and the fork-specific Subaru changes carried in this repository.
 
 ## Active Install URLs
 
-- Stable: `https://installer.comma.ai/MostlyClueless94/master`
-- Testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Stable release: `https://installer.comma.ai/MostlyClueless94/subi-0.9`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Longitudinal experiments: `https://install.sunnypilot.ai/fork/MostlyClueless94/long`
 
 ## Branch Policy
 
-- `master`: primary stable/public install branch.
-- `MostlyClueless`: personal testing branch before promoting changes to `master`.
-- Only `master` and `MostlyClueless` should be used as install branches.
-- Do not use `-tici` branches on comma four.
+- `subi-0.9`: current stable public release lane.
+- `subi-staging`: public broad-testing lane for the next SubiPilot release.
+- `MostlyClueless`: personal testing branch kept for direct experimentation.
+- `subi-1.0`: reserved future public release lane and not published yet.
+- `long`: separate longitudinal experiment and not part of the public release flow.
+- Legacy names like `master` and `mc-0.9` are retained only as transition refs and are no longer the supported public install surface.
+
+## 2026-03-24 (SubiPilot Rebrand)
+
+### What changed
+
+- Rebranded the public fork surface from `MostlyClueless` / `mc-*` to `SubiPilot`.
+- Established the public branch model:
+  - `subi-0.9` stable release
+  - `subi-staging` broad testing
+  - `MostlyClueless` personal testing
+  - `long` separate longitudinal experiments
+- Swapped the boot spinner logo to the new SubiPilot badge asset.
+- Kept the custom spinner asset in normal Git so OTA and installer updates do not depend on Git LFS.
+- Reserved `subi-1.0` for a later release once the current staging work is ready.
+
+### Validation Done
+
+- Confirmed `subi-0.9` continues to use the exact same release lineage and submodule pointer as the previous `mc-0.9` / `master` lane.
+- Prepared the SubiPilot spinner asset with a transparent background and boot-safe padding.
+- Kept historical changelog entries below unchanged so prior branch names remain accurate to the time they were written.
 
 ## Current Commit Map (2026-03-17)
 
