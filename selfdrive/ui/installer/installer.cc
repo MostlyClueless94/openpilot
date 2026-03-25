@@ -53,12 +53,15 @@ std::string migrated_branch;
 
 void branchMigration() {
   migrated_branch = BRANCH_STR;
+  if (BRANCH_STR == "master" || BRANCH_STR == "mc-0.9") {
+    migrated_branch = "subi-0.9";
+    return;
+  }
+
   cereal::InitData::DeviceType device_type = Hardware::get_device_type();
   if (device_type == cereal::InitData::DeviceType::TICI) {
     if (std::find(tici_prebuilt_branches.begin(), tici_prebuilt_branches.end(), BRANCH_STR) != tici_prebuilt_branches.end()) {
       migrated_branch = "release-tici";
-    } else if (BRANCH_STR == "master") {
-      migrated_branch = "master-tici";
     }
   } else if (device_type == cereal::InitData::DeviceType::TIZI) {
     if (BRANCH_STR == "release3") {

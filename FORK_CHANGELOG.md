@@ -1,6 +1,8 @@
 # MostlyClueless94 SunnyPilot Subaru Fork Changelog
-
-This file tracks the maintained Subaru patch queue that sits on top of current SunnyPilot.
+- `MostlyClueless` is the source branch for all SubiPilot development and personal testing.
+- Promote validated commits by fast-forwarding `subi-staging`, then `subi-1.0`.
+- `subi-0.9` stays frozen except for explicit hotfixes.
+- Current install lanes: `subi-0.9`, `subi-staging`, and `MostlyClueless`.
 
 ## Active Install URLs
 
