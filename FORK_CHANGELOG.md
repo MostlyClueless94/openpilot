@@ -1,19 +1,15 @@
-# MostlyClueless94 SunnyPilot Subaru Fork Changelog
-- `MostlyClueless` is the source branch for all SubiPilot development and personal testing.
-- Promote validated commits by fast-forwarding `subi-staging`, then `subi-1.0`.
-- `subi-0.9` stays frozen except for explicit hotfixes.
-- Current install lanes: `subi-0.9`, `subi-staging`, and `MostlyClueless`.
-
-## Active Install URLs
-
-- Stable: `https://installer.comma.ai/MostlyClueless94/subi-0.9`
+# SubiPilot 1.0
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
 - Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Ships the current `MostlyClueless` feature set, including Subaru-first UI polish, F-150 improvements, multi-vehicle fingerprint cache cleanup, and 2025 Crosstrek Wilderness support.
+- `subi-0.9` remains available as the previous stable lane, and `long` remains a separate experiment.
 
-## Branch Policy
+## Branch Roles
 
-- `subi-0.9`: stable public release lane.
+- `subi-1.0`: current stable public release lane.
 - `subi-staging`: broad public testing lane for the next release.
+- `subi-0.9`: previous stable release lane.
 - `MostlyClueless`: personal integration/testing branch.
 - Longitudinal experimentation is intentionally excluded from this rebuilt branch line.
 
