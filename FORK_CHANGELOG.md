@@ -1,3 +1,11 @@
+# SubiPilot 1.0 Hotfix
+- Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
+- Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
+- Personal testing: `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
+- Fixed a 2025 Subaru Crosstrek Wilderness startup crash on `subi-1.0`.
+- The vehicle was already fingerprinting correctly as `SUBARU_CROSSTREK_2025`; this hotfix fixes the missing release torque-data entry that caused `card` to crash and left the UI stuck on `sunnypilot Unavailable / Waiting to start`.
+- No Subaru tuning, safety, or settings behavior changed in this hotfix.
+
 # SubiPilot 1.0
 - Stable install: `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - Broad testing: `https://installer.comma.ai/MostlyClueless94/subi-staging`
