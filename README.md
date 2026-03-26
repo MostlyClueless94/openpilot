@@ -6,13 +6,14 @@ This repository is the installer-facing mirror for the public SubiPilot branches
 
 Current public branch surface:
 
-- `subi-0.9` for the current stable public release
+- `subi-1.0` for the current stable public release
 - `subi-staging` for broad public testing ahead of the next release
+- `subi-0.9` for the previous stable public release
 - `MostlyClueless` for personal testing installs
-- future `subi-1.0` release publication
 
 Canonical install URLs:
 
+- `https://installer.comma.ai/MostlyClueless94/subi-1.0`
 - `https://installer.comma.ai/MostlyClueless94/subi-0.9`
 - `https://installer.comma.ai/MostlyClueless94/subi-staging`
 - `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
