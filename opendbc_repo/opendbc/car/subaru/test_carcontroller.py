@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
+from openpilot.common.params import Params
 from opendbc.car import structs
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.carcontroller import CarController
@@ -28,6 +29,26 @@ class TestSubaruCarController(unittest.TestCase):
       actuators=SimpleNamespace(steeringAngleDeg=steering_angle_deg),
     )
 
+  @staticmethod
+  def _build_cc_torque(lat_active, torque):
+    return SimpleNamespace(
+      latActive=lat_active,
+      enabled=True,
+      actuators=SimpleNamespace(torque=torque),
+    )
+
+  @staticmethod
+  def _build_cs_torque(v_ego_raw, steering_angle_deg, steering_pressed=False, steering_torque=0, steering_rate_deg=0):
+    return SimpleNamespace(out=SimpleNamespace(
+      vEgoRaw=v_ego_raw,
+      steeringAngleDeg=steering_angle_deg,
+      gearShifter=structs.CarState.GearShifter.drive,
+      standstill=False,
+      steeringPressed=steering_pressed,
+      steeringTorque=steering_torque,
+      steeringRateDeg=steering_rate_deg,
+    ))
+
   def _build_controller(self):
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
     CP_SP = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_OUTBACK_2023)
@@ -54,6 +75,43 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertEqual(msg, expected)
     self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_angle_lkas_human_turn_detection_releases_control(self):
+    params = Params()
+    params.put_bool("enable_human_turn_detection", True)
+    params.put_bool("disable_BP_lat_UI", False)
+
+    controller = self._build_controller()
+    expected_controller = self._build_controller()
+    cs = self._build_cs(12.0, 55.0, steering_pressed=True)
+    cc = self._build_cc(True, True, 40.0)
+
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    expected = subarucan.create_steering_control_angle(expected_controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_torque_human_turn_detection_zeroes_steer_request(self):
+    params = Params()
+    params.put_bool("enable_human_turn_detection", True)
+    params.put_bool("disable_BP_lat_UI", False)
+
+    CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK)
+    CP_SP = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_OUTBACK)
+    controller = CarController({}, CP, CP_SP)
+    expected_controller = CarController({}, CP, CP_SP)
+
+    cs = self._build_cs_torque(12.0, 55.0, steering_pressed=True)
+    cc = self._build_cc_torque(True, 0.2)
+
+    msg = controller.handle_torque_lateral(cc, cs)
+    expected = subarucan.create_steering_control(expected_controller.packer, 0, False)
+
+    self.assertEqual(msg, expected)
+    self.assertEqual(controller.apply_torque_last, 0)
 
   def test_newer_angle_lkas_params_construct(self):
     newer_platforms = (

@@ -46,7 +46,7 @@ class BluePilotLayout(Widget):
 
   @classmethod
   def _show_ford_lateral_settings(cls) -> bool:
-    return cls._get_active_brand() == "ford"
+    return cls._get_active_brand() in {"ford", "subaru"}
 
   def __init__(self):
     super().__init__()

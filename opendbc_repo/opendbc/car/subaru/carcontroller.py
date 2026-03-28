@@ -1,4 +1,5 @@
 import numpy as np
+from openpilot.common.params import Params
 from opendbc.can import CANPacker
 from opendbc.car import Bus, make_tester_present_msg, structs
 from opendbc.car.carlog import carlog
@@ -18,6 +19,7 @@ MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
 LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
+HUMAN_TURN_STEER_ANGLE_THRESHOLD = 45.0
 
 
 class CarController(CarControllerBase, SnGCarController):
@@ -33,6 +35,9 @@ class CarController(CarControllerBase, SnGCarController):
 
     self.p = CarControllerParams(CP)
     self.packer = CANPacker(DBC[CP.carFingerprint][Bus.pt])
+    self.params = Params()
+    self.enable_human_turn_detection = True
+    self.disable_bp_lat_ui = False
 
   def _log_transition(self, key, value, message):
     if self._debug_state.get(key) != value:
@@ -51,18 +56,31 @@ class CarController(CarControllerBase, SnGCarController):
     alpha = np.interp(v_ego, [0.0, LOW_SPEED_SMOOTH_MAX_SPEED], [LOW_SPEED_SMOOTH_ALPHA_MIN, 1.0])
     return self.apply_angle_last + alpha * delta
 
+  def _update_params(self):
+    self.enable_human_turn_detection = self.params.get_bool("enable_human_turn_detection")
+    self.disable_bp_lat_ui = self.params.get_bool("disable_BP_lat_UI")
+
+  def _human_turn_active(self, CS) -> bool:
+    if self.disable_bp_lat_ui or not self.enable_human_turn_detection:
+      return False
+
+    return bool(CS.out.steeringPressed and abs(CS.out.steeringAngleDeg) > HUMAN_TURN_STEER_ANGLE_THRESHOLD)
+
   def handle_angle_lateral(self, CC, CS):
     # Angle-LKAS can hard fault during low-speed MADS lateral-only maneuvers.
     # Keep MADS behavior above 5 mph, but block sharp parking-lot style steering in lateral-only mode.
+    human_turn_active = self._human_turn_active(CS)
     mads_only = CC.latActive and not CC.enabled
     mads_manual_override = mads_only and CS.out.steeringPressed
     mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < MADS_ONLY_MAX_STEER_ANGLE
     lkas_request = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
-      CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill and not mads_manual_override
+      CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill and not mads_manual_override and not human_turn_active
 
     inhibit_reason = "none"
     if not CC.latActive:
       inhibit_reason = "lat_inactive"
+    elif human_turn_active:
+      inhibit_reason = "human_turn"
     elif mads_manual_override:
       inhibit_reason = "manual_override"
     elif CS.out.gearShifter != structs.CarState.GearShifter.drive:
@@ -102,18 +120,19 @@ class CarController(CarControllerBase, SnGCarController):
     return subarucan.create_steering_control_angle(self.packer, apply_steer, lkas_request)
 
   def handle_torque_lateral(self, CC, CS):
+    lat_active = CC.latActive and not self._human_turn_active(CS)
     apply_torque = int(round(CC.actuators.torque * self.p.STEER_MAX))
 
     new_torque = int(round(apply_torque))
     apply_torque = apply_driver_steer_torque_limits(new_torque, self.apply_torque_last, CS.out.steeringTorque, self.p)
 
-    if not CC.latActive:
+    if not lat_active:
       apply_torque = 0
 
     if self.CP.flags & SubaruFlags.PREGLOBAL:
-      msg = subarucan.create_preglobal_steering_control(self.packer, self.frame // self.p.STEER_STEP, apply_torque, CC.latActive)
+      msg = subarucan.create_preglobal_steering_control(self.packer, self.frame // self.p.STEER_STEP, apply_torque, lat_active)
     else:
-      apply_steer_req = CC.latActive
+      apply_steer_req = lat_active
 
       if self.CP.flags & SubaruFlags.STEER_RATE_LIMITED:
         # Steering rate fault prevention
@@ -135,6 +154,7 @@ class CarController(CarControllerBase, SnGCarController):
     pcm_cancel_cmd = CC.cruiseControl.cancel
 
     can_sends = []
+    self._update_params()
 
     # *** steering ***
     if (self.frame % self.p.STEER_STEP) == 0:

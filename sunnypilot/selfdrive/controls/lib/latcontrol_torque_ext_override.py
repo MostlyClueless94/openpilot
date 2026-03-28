@@ -17,6 +17,9 @@ class LatControlTorqueExtOverride:
     self.frame = -1
 
   def update_override_torque_params(self, torque_params) -> bool:
+    if self.CP.brand == "subaru" and self.params.get_bool("disable_BP_lat_UI"):
+      return False
+
     if not self.enforce_torque_control_toggle:
       return False
 

@@ -17,6 +17,9 @@ class LatControlTorqueExt(NeuralNetworkLateralControl, LatControlTorqueExtOverri
   def update(self, CS, VM, pid, params, ff, pid_log, setpoint, measurement, calibrated_pose, roll_compensation,
              desired_lateral_accel, actual_lateral_accel, lateral_accel_deadzone, gravity_adjusted_lateral_accel,
              desired_curvature, actual_curvature, steer_limited_by_safety, output_torque):
+    if self.CP.brand == "subaru" and self.params.get_bool("disable_BP_lat_UI"):
+      return pid_log, output_torque
+
     self._ff = ff
     self._pid = pid
     self._pid_log = pid_log

@@ -17,6 +17,7 @@ from openpilot.sunnypilot.livedelay.helpers import get_lat_delay
 from openpilot.sunnypilot.modeld_v2.modeld_base import ModelStateBase
 from openpilot.sunnypilot.selfdrive.controls.lib.blinker_pause_lateral import BlinkerPauseLateral
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v0 import LatControlTorque as LatControlTorqueV0
+from openpilot.sunnypilot.selfdrive.controls.lib.subaru_lateral_settings import SubaruLateralSettings
 
 
 class ControlsExt(ModelStateBase):
@@ -30,6 +31,8 @@ class ControlsExt(ModelStateBase):
     cloudlog.info("controlsd_ext is waiting for CarParamsSP")
     self.CP_SP = messaging.log_from_bytes(params.get("CarParamsSP", block=True), custom.CarParamsSP)
     cloudlog.info("controlsd_ext got CarParamsSP")
+
+    self.subaru_lateral_settings = SubaruLateralSettings(CP) if CP.brand == "subaru" else None
 
     self.sm_services_ext = ['radarState', 'selfdriveStateSP']
     self.pm_services_ext = ['carControlSP']
@@ -64,6 +67,12 @@ class ControlsExt(ModelStateBase):
 
     # MADS not available, use stock state to engage
     return bool(sm['selfdriveState'].active)
+
+  def adjust_desired_curvature(self, CC: structs.CarControl, CS: structs.CarState, sm: messaging.SubMaster, desired_curvature: float) -> float:
+    if self.subaru_lateral_settings is None:
+      return desired_curvature
+
+    return self.subaru_lateral_settings.update(CC.latActive, CS, sm['modelV2'], desired_curvature)
 
   @staticmethod
   def get_lead_data(ld: log.RadarState.LeadData) -> dict:
