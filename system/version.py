@@ -13,8 +13,12 @@ from openpilot.common.git import get_commit, get_origin, get_branch, get_short_b
 RELEASE_SP_BRANCHES = ['release-c3', 'release', 'release-tizi', 'release-tici', 'release-tizi-staging', 'release-tici-staging']
 TESTED_SP_BRANCHES = ['staging-c3', 'staging-c3-new', 'staging']
 MASTER_SP_BRANCHES = ['master']
+SUBIPILOT_DEVELOPMENT_BRANCHES = ['MostlyClueless']
+SUBIPILOT_TESTED_BRANCHES = ['subi-staging']
+SUBIPILOT_RELEASE_BRANCHES = ['subi-1.0']
+TICI_COMPATIBLE_BRANCHES = SUBIPILOT_DEVELOPMENT_BRANCHES + SUBIPILOT_TESTED_BRANCHES + SUBIPILOT_RELEASE_BRANCHES
 RELEASE_BRANCHES = ['release-tizi-staging', 'release-mici-staging', 'release-tizi', 'release-mici', 'nightly']
-TESTED_BRANCHES = RELEASE_BRANCHES + ['devel-staging', 'nightly-dev'] + RELEASE_SP_BRANCHES + TESTED_SP_BRANCHES
+TESTED_BRANCHES = RELEASE_BRANCHES + SUBIPILOT_TESTED_BRANCHES + SUBIPILOT_RELEASE_BRANCHES + ['devel-staging', 'nightly-dev'] + RELEASE_SP_BRANCHES + TESTED_SP_BRANCHES
 
 SP_BRANCH_MIGRATIONS = {
   ("tici", "staging-c3-new"): "staging-tici",
@@ -124,7 +128,7 @@ class BuildMetadata:
 
   @property
   def release_channel(self) -> bool:
-    return self.channel in RELEASE_BRANCHES
+    return self.channel in RELEASE_BRANCHES or self.channel in SUBIPILOT_RELEASE_BRANCHES
 
   @property
   def release_sp_channel(self) -> bool:
@@ -144,7 +148,11 @@ class BuildMetadata:
 
   @property
   def development_channel(self) -> bool:
-    return self.channel == "dev" or self.channel.startswith("dev-") or self.channel.endswith("-prebuilt")
+    return self.channel in SUBIPILOT_DEVELOPMENT_BRANCHES or self.channel == "dev" or self.channel.startswith("dev-") or self.channel.endswith("-prebuilt")
+
+  @property
+  def tici_compatible_channel(self) -> bool:
+    return self.channel.endswith("-tici") or self.channel in TICI_COMPATIBLE_BRANCHES
 
   @property
   def channel_type(self) -> str:
@@ -152,12 +160,12 @@ class BuildMetadata:
       return "tici"
     elif self.development_channel:
       return "development"
+    elif self.release_channel or self.release_sp_channel:
+      return "release"
     elif self.tested_channel:
       return "staging"
     elif self.master_channel:
       return "master"
-    elif self.release_channel or self.release_sp_channel:
-      return "release"
     else:
       return "feature"
 
