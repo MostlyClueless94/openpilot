@@ -129,6 +129,13 @@ class TestSubaruCarController(unittest.TestCase):
         self.assertEqual(CP.carFingerprint, platform)
         self.assertGreater(CP.maxLateralAccel, 0.0)
 
+  def test_forester_2022_is_not_dashcam_only_on_mostlyclueless(self):
+    CP = CarInterface.get_non_essential_params(CAR.SUBARU_FORESTER_2022)
+    _ = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_FORESTER_2022)
+
+    self.assertFalse(CP.dashcamOnly)
+    self.assertEqual(CP.steerControlType, structs.CarParams.SteerControlType.angle)
+
   def test_crosstrek_2025_params_construct(self):
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_CROSSTREK_2025)
     _ = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_CROSSTREK_2025)

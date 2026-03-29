@@ -4,13 +4,10 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-import json
-import os
 import pyray as rl
 from collections.abc import Callable
 from functools import partial
 
-from openpilot.common.basedir import BASEDIR
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import DialogResult, Widget
@@ -20,8 +17,7 @@ from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeOptionDialog, TreeNode, TreeFolder
 from openpilot.selfdrive.ui.ui_state import ui_state
-
-CAR_LIST_JSON_OUT = os.path.join(BASEDIR, "sunnypilot", "selfdrive", "car", "car_list.json")
+from openpilot.sunnypilot.selfdrive.car.car_list import get_runtime_car_list
 
 
 class LegendWidget(Widget):
@@ -60,8 +56,7 @@ class PlatformSelector(Button):
     super().__init__(tr("Vehicle"), self._on_clicked, button_style=ButtonStyle.NORMAL)
     self.set_rect(rl.Rectangle(0, 0, 0, 120))
 
-    with open(CAR_LIST_JSON_OUT) as car_list_json:
-      self._platforms = json.load(car_list_json)
+    self._platforms = get_runtime_car_list()
 
     self._on_platform_change = on_platform_change
     self.refresh()

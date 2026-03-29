@@ -9,6 +9,7 @@ from opendbc.car.values import PLATFORMS
 
 CAR_LIST_JSON_OUT = os.path.join(BASEDIR, "../", "sunnypilot", "car", "car_list.json")
 MANUAL_SELECTOR_DASHCAM_ALLOWLIST = {
+  "SUBARU_FORESTER_2022",
   "SUBARU_OUTBACK_2023",
   "SUBARU_ASCENT_2023",
   "SUBARU_CROSSTREK_2025",

@@ -1,5 +1,5 @@
 """
-BluePilot: MICI vehicle fingerprint selector (make → model).
+BluePilot: MICI vehicle fingerprint selector (make â†’ model).
 
 Horizontal NavScroller pattern (same as PreferredNetworkSelectMici / WifiUIMici).
 Car data from sunnypilot selfdrive/car/car_list.json (same as TICI PlatformSelector).
@@ -7,12 +7,10 @@ Car data from sunnypilot selfdrive/car/car_list.json (same as TICI PlatformSelec
 
 from __future__ import annotations
 
-import json
-import os
 from collections.abc import Callable
 
-from openpilot.common.basedir import BASEDIR
 from openpilot.common.swaglog import cloudlog
+from openpilot.sunnypilot.selfdrive.car.car_list import get_runtime_car_list
 from openpilot.selfdrive.ui.bp.mici.widgets.button_bp import BigButtonBP
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationDialogV2
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -20,12 +18,9 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
 
-CAR_LIST_JSON = os.path.join(BASEDIR, "sunnypilot", "selfdrive", "car", "car_list.json")
-
 
 def load_car_platforms() -> dict:
-  with open(CAR_LIST_JSON) as f:
-    return json.load(f)
+  return get_runtime_car_list()
 
 
 def platform_names_for_make(platforms: dict, make: str) -> list[str]:
@@ -35,7 +30,7 @@ def platform_names_for_make(platforms: dict, make: str) -> list[str]:
 
 def makes_available(platforms: dict) -> list[tuple[str, str]]:
   """
-  Every unique ``make`` from car_list.json, sorted — same set TICI uses for TreeFolder
+  Every unique ``make`` from car_list.json, sorted â€” same set TICI uses for TreeFolder
   in PlatformSelector._show_platform_dialog (sorted unique makes, then platforms per make).
   """
   makes = sorted({d.get("make") for d in platforms.values() if d.get("make")})
@@ -107,7 +102,7 @@ class VehicleModelSelectMici(NavScroller):
       if len(display) > 42:
         display = display[:39] + "..."
       # scroll=False: TICI ConfirmDialog uses margins that break Label wrapping on narrow MICI screens
-      # (near-zero width → one character per line, "eff" column from "...effect...").
+      # (near-zero width â†’ one character per line, "eff" column from "...effect...").
       btn = BigButtonBP(display, "", "../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png", scroll=False)
       btn.set_click_callback(lambda n=name: self._ask_confirm(n))
       self._scroller.add_widget(btn)
