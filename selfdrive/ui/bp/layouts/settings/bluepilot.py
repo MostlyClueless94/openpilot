@@ -8,6 +8,7 @@ from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.list_view import toggle_item, multiple_button_item, button_item, ButtonAction, ListItem
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
+from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
@@ -76,7 +77,6 @@ class BluePilotLayout(Widget):
       ("enable_human_turn_detection", self._enable_human_turn_detection),
       ("BlinkerPauseLaneChange", self._disable_lane_change_under_speed),
       ("enable_lane_positioning", self._enable_lane_positioning),
-      ("enable_lane_full_mode", self._enable_lane_full_mode),
       ("custom_profile", self._custom_profile),
       ("disable_BP_lat_UI", self._disable_BP_lat),
       ("BPUIDebugLog", self._ui_debug_log),
@@ -212,16 +212,6 @@ class BluePilotLayout(Widget):
       icon="chffr_wheel.png"
     )
 
-    # Enable lanefull mode toggle (conditional on lane positioning)
-    self._enable_lane_full_mode = toggle_item(
-      lambda: tr("Enable Lanefull Mode"),
-      lambda: tr("Enable lanefull mode for lane positioning."),
-      initial_state=self._safe_get_bool(self._params, "enable_lane_full_mode"),
-      callback=lambda state: self._toggle_callback(state, "enable_lane_full_mode"),
-      enabled=lambda: self._safe_get_bool(self._params, "enable_lane_positioning"),
-      icon="chffr_wheel.png"
-    )
-
     # Custom profile toggle
     self._custom_profile = toggle_item(
       lambda: tr("Use Custom Tuning Profile"),
@@ -297,12 +287,21 @@ class BluePilotLayout(Widget):
       icon="chffr_wheel.png"
     )
 
+    self._lateral_warning = UnifiedLabel(
+      lambda: tr("Experimental settings. May have unintended results."),
+      font_size=28,
+      text_color=rl.Color(255, 96, 96, 255),
+      max_width=600,
+      elide=False,
+      wrap_text=True,
+      line_height=1.05,
+    )
+
     ford_only_items = (
       self._enable_human_turn_detection,
       self._lane_change_factor_high,
       self._enable_lane_positioning,
       self._custom_path_offset,
-      self._enable_lane_full_mode,
       self._custom_profile,
       self._pc_blend_ratio_high_C,
       self._pc_blend_ratio_low_C,
@@ -347,13 +346,13 @@ class BluePilotLayout(Widget):
       self._show_ford_radar_overlay,
       self._radar_overlay_size_btn,
       SectionHeader(tr("Lateral Tuning")),
+      self._lateral_warning,
       self._disable_BP_lat,
       self._enable_human_turn_detection,
       self._disable_lane_change_under_speed,
       self._lane_change_factor_high,
       self._enable_lane_positioning,
       self._custom_path_offset,
-      self._enable_lane_full_mode,
       self._custom_profile,
       self._pc_blend_ratio_high_C,
       self._pc_blend_ratio_low_C,
@@ -396,7 +395,6 @@ class BluePilotLayout(Widget):
     lane_pos = fresh.get("enable_lane_positioning") if "enable_lane_positioning" in fresh else self._safe_get_bool(ui_state.params, "enable_lane_positioning")
     custom_prof = fresh.get("custom_profile") if "custom_profile" in fresh else self._safe_get_bool(ui_state.params, "custom_profile")
     self._custom_path_offset.action_item.set_enabled(lane_pos)
-    self._enable_lane_full_mode.action_item.set_enabled(lane_pos)
     self._pc_blend_ratio_high_C.action_item.set_enabled(custom_prof)
     self._pc_blend_ratio_low_C.action_item.set_enabled(custom_prof)
     self._lc_pid_gain.action_item.set_enabled(lane_pos and custom_prof)

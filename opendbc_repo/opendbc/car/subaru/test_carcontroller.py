@@ -7,10 +7,15 @@ from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.carcontroller import CarController, LONG_MESSAGE_STALE_MAX_FRAMES
 from opendbc.car.subaru.carstate import CarState
 from opendbc.car.subaru.interface import CarInterface
-from opendbc.car.subaru.values import CAR, SubaruFlags
+from opendbc.car.subaru.values import CAR, OUTBACK_ALPHA_LONG_PHASE, SubaruFlags
 
 
 class TestSubaruCarController(unittest.TestCase):
+  def test_subaru_import_smoke(self):
+    self.assertIsNotNone(CarInterface)
+    self.assertIsNotNone(CarController)
+    self.assertGreaterEqual(OUTBACK_ALPHA_LONG_PHASE, 0)
+
   @staticmethod
   def _build_cs(v_ego_raw, steering_angle_deg, steering_pressed=False):
     return SimpleNamespace(out=SimpleNamespace(

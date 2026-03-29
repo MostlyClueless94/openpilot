@@ -12,6 +12,7 @@ from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network
+from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.selfdrive.ui.bp.mici.widgets.preferred_network_select import PreferredNetworkSelectMici
@@ -62,7 +63,6 @@ class BluePilotLayoutMici(NavWidget):
     self.lane_change_factor_high = BigParamFloatControl("lane change factor high", "lane_change_factor_high", min=0.5, max=1.0)
     self.enable_lane_positioning = BigParamControlBP("enable lane positioning", "enable_lane_positioning", tint=rl.GREEN)
     self.custom_path_offset = BigParamFloatControl("in-lane offset", "custom_path_offset", is_active_param="enable_lane_positioning", min=-0.5, max=0.5, tint=rl.GREEN)
-    self.enable_lane_full_mode = BigParamControlBP("enable lanefull mode", "enable_lane_full_mode", is_active_param="enable_lane_positioning", tint=rl.GREEN)
     self.custom_profile = BigParamControlBP("use custom tuning profile", "custom_profile", tint=rl.BLUE)
     self.pc_blend_ratio_high_C = BigParamFloatControl("predicted curvature blend ratio high", "pc_blend_ratio_high_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
     self.pc_blend_ratio_low_C = BigParamFloatControl("predicted curvature blend ratio low", "pc_blend_ratio_low_C_UI", is_active_param="custom_profile", min=0.0, max=1.0, tint=rl.BLUE)
@@ -84,13 +84,21 @@ class BluePilotLayoutMici(NavWidget):
     self.clear_model_cache.set_click_callback(self._clear_model_cache)
     self.ui_debug_log = BigParamControlBP("ui debug logging", "BPUIDebugLog")
     self.vbatt_pause_charging = BigParamFloatControl("12V battery limit", "vbatt_pause_charging", min=11.0, max=14.0, step=0.1)
+    self.lateral_warning = UnifiedLabel(
+      tr("Experimental settings. May have unintended results."),
+      font_size=30,
+      text_color=rl.Color(255, 96, 96, 255),
+      max_width=1070,
+      elide=False,
+      wrap_text=True,
+      line_height=1.05,
+    )
 
     ford_only_items = (
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.enable_lane_positioning,
       self.custom_path_offset,
-      self.enable_lane_full_mode,
       self.custom_profile,
       self.pc_blend_ratio_high_C,
       self.pc_blend_ratio_low_C,
@@ -113,13 +121,13 @@ class BluePilotLayoutMici(NavWidget):
       self.show_blindspot_ui,
       self.rainbow_mode,
       self.custom_model_path_color,
+      self.lateral_warning,
       self.enable_human_turn_detection,
       self.lane_change_factor_high,
       self.disable_lane_change_under_speed,
       self.blinker_min_speed,
       self.enable_lane_positioning,
       self.custom_path_offset,
-      self.enable_lane_full_mode,
       self.custom_profile,
       self.pc_blend_ratio_high_C,
       self.pc_blend_ratio_low_C,
@@ -142,7 +150,6 @@ class BluePilotLayoutMici(NavWidget):
       ("enable_human_turn_detection", self.enable_human_turn_detection),
       ("BlinkerPauseLaneChange", self.disable_lane_change_under_speed),
       ("enable_lane_positioning", self.enable_lane_positioning),
-      ("enable_lane_full_mode", self.enable_lane_full_mode),
       ("custom_profile", self.custom_profile),
       ("disable_BP_lat_UI", self.disable_BP_lat),
       ("BPAnimateSteeringWheel", self.animate_steering_wheel),
@@ -228,7 +235,6 @@ class BluePilotLayoutMici(NavWidget):
     # Lane positioning–dependent controls (prereq: Enable Advanced Lane Positioning)
     lane_positioning_enabled = p.get_bool("enable_lane_positioning")
     self.custom_path_offset.set_enabled(lane_positioning_enabled)
-    self.enable_lane_full_mode.set_enabled(lane_positioning_enabled)
 
     # Custom profile–dependent controls (prereq: Use Custom Tuning Profile)
     custom_profile_enabled = p.get_bool("custom_profile")

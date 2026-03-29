@@ -7,8 +7,7 @@ from opendbc.car.carlog import carlog
 from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
-from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
-from opendbc.car.subaru.interface import OUTBACK_ALPHA_LONG_PHASE
+from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, OUTBACK_ALPHA_LONG_PHASE, CanBus, CarControllerParams, SubaruFlags
 
 from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarController
 

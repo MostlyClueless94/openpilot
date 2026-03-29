@@ -3,15 +3,7 @@ from opendbc.car.disable_ecu import disable_ecu
 from opendbc.car.interfaces import CarInterfaceBase
 from opendbc.car.subaru.carcontroller import CarController
 from opendbc.car.subaru.carstate import CarState
-from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, SubaruFlags, SubaruSafetyFlags
-
-# Outback alpha-long phased bring-up gate (MostlyClueless branch only):
-# 0 = hidden/disabled — feature off, alphaLongitudinalAvailable = False
-# 1 = EyeSight disable only — no ES replay, no gas/brake actuation (Phase 1 validation)
-# 2 = EyeSight disable + ES replay/counter maintenance — no gas/brake override (Phase 2 validation)
-# 3 = full longitudinal actuation enabled
-OUTBACK_ALPHA_LONG_PHASE = 1
-
+from opendbc.car.subaru.values import CAR, GLOBAL_ES_ADDR, OUTBACK_ALPHA_LONG_PHASE, SubaruFlags, SubaruSafetyFlags
 
 class CarInterface(CarInterfaceBase):
   CarState = CarState

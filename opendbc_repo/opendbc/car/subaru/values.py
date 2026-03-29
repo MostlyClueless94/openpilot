@@ -84,6 +84,13 @@ class SubaruFlags(IntFlag):
 GLOBAL_ES_ADDR = 0x787
 GEN2_ES_BUTTONS_DID = b'\x11\x30'
 
+# Outback alpha-long phased bring-up gate (MostlyClueless branch only):
+# 0 = hidden/disabled - feature off, alphaLongitudinalAvailable = False
+# 1 = EyeSight disable only - no ES replay, no gas/brake actuation (Phase 1 validation)
+# 2 = EyeSight disable + ES replay/counter maintenance - no gas/brake override (Phase 2 validation)
+# 3 = full longitudinal actuation enabled
+OUTBACK_ALPHA_LONG_PHASE = 1
+
 
 class CanBus:
   main = 0

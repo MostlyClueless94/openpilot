@@ -7,6 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 from openpilot.common.swaglog import cloudlog
 
 ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
+LANEFULL_MODE_RESET_MIGRATION_VERSION: str = "1.0"
 
 
 def run_migration(_params):
@@ -25,3 +26,12 @@ def run_migration(_params):
       cloudlog.info(log_str + f" Setting OnroadScreenOffBrightnessMigrated to {ONROAD_BRIGHTNESS_MIGRATION_VERSION}")
     except Exception as e:
       cloudlog.exception(f"Error migrating OnroadScreenOffBrightness: {e}")
+
+  if _params.get("LanefullModeResetMigrated") != LANEFULL_MODE_RESET_MIGRATION_VERSION:
+    try:
+      _params.put_bool("enable_lane_full_mode", False)
+      _params.put("LanefullModeResetMigrated", LANEFULL_MODE_RESET_MIGRATION_VERSION)
+      cloudlog.info("Successfully reset enable_lane_full_mode to False. "
+                    f"Setting LanefullModeResetMigrated to {LANEFULL_MODE_RESET_MIGRATION_VERSION}")
+    except Exception as e:
+      cloudlog.exception(f"Error resetting enable_lane_full_mode: {e}")
