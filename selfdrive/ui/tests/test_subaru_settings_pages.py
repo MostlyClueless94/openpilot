@@ -76,7 +76,9 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigParamControl("subaru steering\\nsmoothing", "MCSubaruSmoothingTune")' in source
   assert 'BigButton("smoothing\\nstrength")' in source
   assert 'BigButton("center\\ndamping")' in source
+  assert 'BigParamControl("custom resume\\nspeed", "MCSubaruManualYieldResumeSpeedEnabled")' in source
   assert 'BigButton("manual yield\\nresume speed")' in source
+  assert 'BigParamControl("custom resume\\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")' in source
   assert 'BigButton("manual yield\\nresume softness")' in source
   assert 'list(range(-3, 5))' in source
   assert 'list(range(7))' in source
@@ -111,10 +113,12 @@ def test_mici_subaru_layout_preserves_scroll_restore_selector_stack():
 
 def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility():
   source = _read(MICI_SUBARU)
-  assert "return ui_state.params.get_bool(key, default)" in source
+  assert "value = ui_state.params.get(key, return_default=True)" in source
   assert "self._set_advanced_tuning_visibility(advanced_tuning_enabled)" in source
   assert 'self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)' in source
   assert 'self._subaru_center_damping_btn.set_enabled(smoothing_enabled)' in source
+  assert 'self._manual_yield_resume_speed_btn.set_enabled(resume_speed_enabled)' in source
+  assert 'self._manual_yield_resume_softness_btn.set_enabled(resume_softness_enabled)' in source
   assert 'self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4)))' in source
   assert 'self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6)))' in source
 
@@ -126,10 +130,14 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '{"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
   assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
+  assert '{"MCSubaruManualYieldResumeSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
+  assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '"MCSubaruAdvancedTuning"' in metadata_source
+  assert '"MCSubaruManualYieldResumeSpeedEnabled"' in metadata_source
   assert '"MCSubaruManualYieldResumeSpeed"' in metadata_source
+  assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in metadata_source
   assert '"MCSubaruManualYieldResumeSoftness"' in metadata_source
   assert '"label": "Fastest"' in metadata_source
   assert '"label": "Slowest"' in metadata_source

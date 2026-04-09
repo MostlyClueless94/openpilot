@@ -34,6 +34,14 @@ RESUME_SPEED_DESC = (
 RESUME_SOFTNESS_DESC = (
   "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."
 )
+CUSTOM_RESUME_SPEED_DESC = (
+  "Enable a custom manual-yield resume speed. When off, steering reclaim speed falls back to the current validated default "
+  + "while keeping your saved speed selection."
+)
+CUSTOM_RESUME_SOFTNESS_DESC = (
+  "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default "
+  + "while keeping your saved softness selection."
+)
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
   + "When enabled, the wheel angle blends gradually toward the model target "
@@ -75,6 +83,18 @@ class MCCustomLayout(Widget):
     except (TypeError, ValueError):
       return default
 
+  def _get_bool_param(self, key: str, default: bool = False) -> bool:
+    value = self._params.get(key, return_default=True)
+    if value is None:
+      return default
+    if isinstance(value, bool):
+      return value
+    if isinstance(value, bytes):
+      return value not in (b"", b"0")
+    if isinstance(value, str):
+      return value not in ("", "0", "false", "False")
+    return bool(value)
+
   def _initialize_items(self):
     self._dynamic_path_color = toggle_item_sp(
       title=lambda: tr("Dynamic Path Color"),
@@ -101,13 +121,13 @@ class MCCustomLayout(Widget):
       title=lambda: tr("Advanced Tuning"),
       description=lambda: tr(ADVANCED_TUNING_DESC),
       param="MCSubaruAdvancedTuning",
-      initial_state=self._params.get_bool("MCSubaruAdvancedTuning"),
+      initial_state=self._get_bool_param("MCSubaruAdvancedTuning"),
     )
     self._subaru_smoothing_tune = toggle_item_sp(
       title=lambda: tr("Subaru Steering Smoothing"),
       description=lambda: tr(SMOOTHING_TUNE_DESC),
       param="MCSubaruSmoothingTune",
-      initial_state=self._params.get_bool("MCSubaruSmoothingTune"),
+      initial_state=self._get_bool_param("MCSubaruSmoothingTune", True),
     )
     self._subaru_smoothing_strength = option_item_sp(
       title=lambda: tr("Smoothing Strength"),
@@ -129,6 +149,12 @@ class MCCustomLayout(Widget):
       label_callback=self._format_subaru_strength_label,
       inline=False,
     )
+    self._manual_yield_resume_speed_enabled = toggle_item_sp(
+      title=lambda: tr("Custom Resume Speed"),
+      description=lambda: tr(CUSTOM_RESUME_SPEED_DESC),
+      param="MCSubaruManualYieldResumeSpeedEnabled",
+      initial_state=self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True),
+    )
     self._manual_yield_resume_speed = option_item_sp(
       title=lambda: tr("Manual Yield Resume Speed"),
       description=lambda: tr(RESUME_SPEED_DESC),
@@ -138,6 +164,12 @@ class MCCustomLayout(Widget):
       value_change_step=1,
       label_callback=self._format_resume_speed_label,
       inline=False,
+    )
+    self._manual_yield_resume_softness_enabled = toggle_item_sp(
+      title=lambda: tr("Custom Resume Softness"),
+      description=lambda: tr(CUSTOM_RESUME_SOFTNESS_DESC),
+      param="MCSubaruManualYieldResumeSoftnessEnabled",
+      initial_state=self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True),
     )
     self._manual_yield_resume_softness = option_item_sp(
       title=lambda: tr("Manual Yield Resume Softness"),
@@ -153,7 +185,7 @@ class MCCustomLayout(Widget):
       title=lambda: tr("Soft-Capture Engage Blend"),
       description=lambda: tr(SOFT_CAPTURE_DESC),
       param="MCSubaruSoftCaptureEnabled",
-      initial_state=self._params.get_bool("MCSubaruSoftCaptureEnabled"),
+      initial_state=self._get_bool_param("MCSubaruSoftCaptureEnabled"),
     )
     self._subaru_soft_capture_strength = option_item_sp(
       title=lambda: tr("Soft-Capture Strength"),
@@ -177,7 +209,9 @@ class MCCustomLayout(Widget):
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
       self._subaru_center_damping,
+      self._manual_yield_resume_speed_enabled,
       self._manual_yield_resume_speed,
+      self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
@@ -206,35 +240,43 @@ class MCCustomLayout(Widget):
     self._subaru_smoothing_tune.set_visible(advanced_tuning_enabled)
     self._subaru_smoothing_strength.set_visible(advanced_tuning_enabled)
     self._subaru_center_damping.set_visible(advanced_tuning_enabled)
+    self._manual_yield_resume_speed_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_speed.set_visible(advanced_tuning_enabled)
+    self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
 
   def _update_subaru_settings(self) -> None:
-    advanced_tuning_enabled = self._params.get_bool("MCSubaruAdvancedTuning")
-    smoothing_enabled = self._params.get_bool("MCSubaruSmoothingTune")
+    advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
+    smoothing_enabled = self._get_bool_param("MCSubaruSmoothingTune", True)
+    resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
+    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
+    self._manual_yield_resume_speed_enabled.action_item.set_state(resume_speed_enabled)
+    self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
     self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))
     self._subaru_center_damping.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 2), 4))
     self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
-    soft_capture_enabled = self._params.get_bool("MCSubaruSoftCaptureEnabled")
+    soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
     self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
     self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
     self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)
+    self._manual_yield_resume_speed.action_item.set_enabled(resume_speed_enabled)
+    self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)
     self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)
     self._set_subaru_section_visibility(advanced_tuning_enabled)
 
   def _update_state(self):
     super()._update_state()
 
-    self._dynamic_path_color.action_item.set_state(self._params.get_bool("DynamicPathColor"))
+    self._dynamic_path_color.action_item.set_state(self._get_bool_param("DynamicPathColor"))
     selected_color = max(0, min(self._get_int_param("CustomModelPathColor"), len(CUSTOM_MODEL_PATH_COLOR_LABELS) - 1))
     self._custom_model_path_color.action_item.set_selected_button(selected_color)
-    self._show_vehicle_brake_status.action_item.set_state(self._params.get_bool("MCShowVehicleBrakeStatus"))
+    self._show_vehicle_brake_status.action_item.set_state(self._get_bool_param("MCShowVehicleBrakeStatus"))
     self._update_subaru_settings()
 
   def _render(self, rect):

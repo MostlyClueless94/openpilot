@@ -33,7 +33,9 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruSmoothingTune",
     "MCSubaruSmoothingStrength",
     "MCSubaruCenterDampingStrength",
+    "MCSubaruManualYieldResumeSpeedEnabled",
     "MCSubaruManualYieldResumeSpeed",
+    "MCSubaruManualYieldResumeSoftnessEnabled",
     "MCSubaruManualYieldResumeSoftness",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
@@ -67,20 +69,30 @@ class TestSubaruCarController(unittest.TestCase):
       actuators=SimpleNamespace(steeringAngleDeg=steering_angle_deg),
     )
 
-  def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3):
+  def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
+                        resume_speed_enabled=True, resume_softness_enabled=True,
+                        resume_speed_setting=None, resume_softness_setting=None):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
+    self.params.put_bool("MCSubaruManualYieldResumeSpeedEnabled", resume_speed_enabled)
+    self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
+    if resume_speed_setting is not None:
+      self.params.put("MCSubaruManualYieldResumeSpeed", str(resume_speed_setting))
+    if resume_softness_setting is not None:
+      self.params.put("MCSubaruManualYieldResumeSoftness", str(resume_softness_setting))
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
     CP_SP = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_OUTBACK_2023)
     return CarController({}, CP, CP_SP)
 
   @staticmethod
-  def _set_resume_profile(controller, speed_setting=1, softness_setting=0):
+  def _set_resume_profile(controller, speed_setting=4, softness_setting=4):
     controller.mc_subaru_manual_yield_resume_speed = speed_setting
     controller.mc_subaru_manual_yield_resume_softness = softness_setting
 
-  def _prime_angle_driver_override_ramp(self, controller, cc, v_ego_raw=8.0, measured_angle=10.0, speed_setting=1, softness_setting=0):
-    self._set_resume_profile(controller, speed_setting, softness_setting)
+  def _prime_angle_driver_override_ramp(self, controller, cc, v_ego_raw=8.0, measured_angle=10.0,
+                                        speed_setting=4, softness_setting=4, use_current_profile=False):
+    if not use_current_profile:
+      self._set_resume_profile(controller, speed_setting, softness_setting)
     controller.apply_angle_last = measured_angle
 
     controller.handle_angle_lateral(cc, self._build_cs(v_ego_raw, measured_angle, steering_pressed=True))
@@ -88,11 +100,13 @@ class TestSubaruCarController(unittest.TestCase):
     for _ in range(ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES):
       controller.handle_angle_lateral(cc, released_cs)
 
+    expected_speed_setting = controller.mc_subaru_manual_yield_resume_speed
+    expected_softness_setting = controller.mc_subaru_manual_yield_resume_softness
     self.assertEqual(controller.angle_driver_override_hold_frames, 0)
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[speed_setting])
-    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[speed_setting])
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[expected_speed_setting])
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[expected_speed_setting])
     self.assertAlmostEqual(controller.angle_driver_override_ramp_start_angle, measured_angle)
-    self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[softness_setting])
+    self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[expected_softness_setting])
     return released_cs
 
   def test_angle_driver_override_still_wins_in_mads_only(self):
@@ -186,6 +200,24 @@ class TestSubaruCarController(unittest.TestCase):
       self.assertEqual(controller.angle_driver_override_ramp_frames, expected_frames)
       self.assertEqual(controller.angle_driver_override_ramp_total_frames, expected_frames)
 
+  def test_angle_driver_override_resume_speed_toggle_off_uses_default_frames_but_keeps_custom_softness(self):
+    controller = self._build_controller(
+      resume_speed_enabled=False,
+      resume_softness_enabled=True,
+      resume_speed_setting=1,
+      resume_softness_setting=6,
+    )
+    cc = self._build_cc(True, True, 14.0)
+
+    self.assertEqual(controller.mc_subaru_manual_yield_resume_speed, 4)
+    self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, 6)
+
+    self._prime_angle_driver_override_ramp(controller, cc, use_current_profile=True)
+
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[6])
+
   def test_angle_driver_override_resume_softness_profiles_map_to_expected_exponents(self):
     expected_exponents = {
       0: 1.0,
@@ -204,6 +236,27 @@ class TestSubaruCarController(unittest.TestCase):
       self._prime_angle_driver_override_ramp(controller, cc, softness_setting=softness_setting)
 
       self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, expected_exponent)
+
+  def test_angle_driver_override_resume_softness_toggle_off_uses_default_exponent_but_keeps_custom_speed(self):
+    controller = self._build_controller(
+      resume_speed_enabled=True,
+      resume_softness_enabled=False,
+      resume_speed_setting=1,
+      resume_softness_setting=6,
+    )
+    cc = self._build_cc(True, True, 14.0)
+
+    self.assertEqual(controller.mc_subaru_manual_yield_resume_speed, 1)
+    self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, 4)
+
+    self._prime_angle_driver_override_ramp(controller, cc, use_current_profile=True)
+
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
+    self.assertAlmostEqual(
+      controller.angle_driver_override_ramp_softness_exponent,
+      ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT],
+    )
 
   def test_angle_driver_override_ramp_progresses_monotonically_toward_live_target_in_mads_only(self):
     controller = self._build_controller()

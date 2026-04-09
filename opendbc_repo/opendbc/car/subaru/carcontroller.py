@@ -87,7 +87,9 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_smoothing_tune = False
     self.mc_subaru_smoothing_strength = 0
     self.mc_subaru_center_damping_strength = 0
+    self.mc_subaru_manual_yield_resume_speed_enabled = True
     self.mc_subaru_manual_yield_resume_speed = ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_DEFAULT
+    self.mc_subaru_manual_yield_resume_softness_enabled = True
     self.mc_subaru_manual_yield_resume_softness = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
     self.mc_subaru_soft_capture_enabled = False
     self.mc_subaru_soft_capture_level = 3
@@ -113,6 +115,18 @@ class CarController(CarControllerBase, SnGCarController):
       return int(value)
     except (TypeError, ValueError):
       return default
+
+  def _get_bool_param(self, key: str, default: bool = False) -> bool:
+    value = self.params.get(key, return_default=True)
+    if value is None:
+      return default
+    if isinstance(value, bool):
+      return value
+    if isinstance(value, bytes):
+      return value not in (b"", b"0")
+    if isinstance(value, str):
+      return value not in ("", "0", "false", "False")
+    return bool(value)
 
   @staticmethod
   def _get_strength_scale(strength: int, values: list[float]) -> float:
@@ -160,7 +174,7 @@ class CarController(CarControllerBase, SnGCarController):
     return wheel_angle + alpha * (model_target - wheel_angle)
 
   def _update_params(self):
-    self.mc_subaru_smoothing_tune = self.params.get_bool("MCSubaruSmoothingTune")
+    self.mc_subaru_smoothing_tune = self._get_bool_param("MCSubaruSmoothingTune", True)
     self.mc_subaru_smoothing_strength = int(np.clip(
       self._get_int_param("MCSubaruSmoothingStrength"),
       SUBARU_TUNING_STRENGTH_MIN,
@@ -171,17 +185,23 @@ class CarController(CarControllerBase, SnGCarController):
       SUBARU_TUNING_STRENGTH_MIN,
       SUBARU_TUNING_STRENGTH_MAX,
     ))
-    self.mc_subaru_manual_yield_resume_speed = int(np.clip(
+    self.mc_subaru_manual_yield_resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
+    manual_yield_resume_speed = int(np.clip(
       self._get_int_param("MCSubaruManualYieldResumeSpeed", ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_DEFAULT),
       ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_MIN,
       ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_MAX,
     ))
-    self.mc_subaru_manual_yield_resume_softness = int(np.clip(
+    self.mc_subaru_manual_yield_resume_speed = manual_yield_resume_speed if self.mc_subaru_manual_yield_resume_speed_enabled \
+      else ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_DEFAULT
+    self.mc_subaru_manual_yield_resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    manual_yield_resume_softness = int(np.clip(
       self._get_int_param("MCSubaruManualYieldResumeSoftness", ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT),
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MIN,
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MAX,
     ))
-    self.mc_subaru_soft_capture_enabled = self.params.get_bool("MCSubaruSoftCaptureEnabled")
+    self.mc_subaru_manual_yield_resume_softness = manual_yield_resume_softness if self.mc_subaru_manual_yield_resume_softness_enabled \
+      else ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
+    self.mc_subaru_soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self.mc_subaru_soft_capture_level = int(np.clip(
       self._get_int_param("MCSubaruSoftCaptureLevel", 3),
       1,

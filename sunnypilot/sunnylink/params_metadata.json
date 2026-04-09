@@ -364,6 +364,10 @@
     "title": "Advanced Tuning",
     "description": "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
   },
+  "MCSubaruManualYieldResumeSpeedEnabled": {
+    "title": "Custom Resume Speed",
+    "description": "Enable a custom manual-yield resume speed. When off, steering reclaim speed falls back to the current validated default while keeping your saved speed selection."
+  },
   "MCSubaruManualYieldResumeSpeed": {
     "title": "Manual Yield Resume Speed",
     "description": "Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override.",
@@ -379,6 +383,10 @@
     "min": 0,
     "max": 6,
     "step": 1
+  },
+  "MCSubaruManualYieldResumeSoftnessEnabled": {
+    "title": "Custom Resume Softness",
+    "description": "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default while keeping your saved softness selection."
   },
   "MCSubaruManualYieldResumeSoftness": {
     "title": "Manual Yield Resume Softness",
