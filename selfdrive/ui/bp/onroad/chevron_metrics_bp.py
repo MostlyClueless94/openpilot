@@ -21,6 +21,7 @@ LEAD_RADAR_GLOW = rl.Color(0, 134, 233, 255)
 RADAR_BORDER_COLOR_BASE = rl.Color(0, 100, 200, 255)   # Blue for radar
 LEAD_VISION_GLOW = rl.Color(218, 202, 37, 255)
 VISION_BORDER_COLOR_BASE = rl.Color(201, 34, 49, 255)   # Red for vision
+FORD_RADAR_OVERLAY_INFO_DEFAULT = ChevronOptions.ALL
 
 class ChevronMetricsBP(ChevronMetrics):
   """BluePilot ChevronMetrics with horizontal boxed layout and radar/vision colored borders."""
@@ -61,33 +62,52 @@ class ChevronMetricsBP(ChevronMetrics):
     is_radar = self.lead_is_radar[lead_index] if lead_index < len(self.lead_is_radar) else False
     self._render_text_lines_bp(text_lines, lead_vehicle, sz, rect, is_radar, self._inverted_mode)
 
-  def _build_text_lines_bp(self, d_rel: float, v_rel: float, v_ego: float) -> list[str]:
-    """Build text lines - Ford overlay forces all 3, otherwise respects setting."""
-    if self.ford_overlay_enabled:
-      # When Ford overlay is enabled, always show all 3 values
-      text_lines = []
+  def _get_ford_overlay_info(self) -> int:
+    try:
+      overlay_info = int(self._bp_params.get("FordPrefRadarOverlayInfo") or FORD_RADAR_OVERLAY_INFO_DEFAULT)
+    except (TypeError, ValueError):
+      overlay_info = FORD_RADAR_OVERLAY_INFO_DEFAULT
 
-      # Distance
+    if overlay_info not in (
+      ChevronOptions.DISTANCE_ONLY,
+      ChevronOptions.SPEED_ONLY,
+      ChevronOptions.TTC_ONLY,
+      ChevronOptions.ALL,
+    ):
+      return FORD_RADAR_OVERLAY_INFO_DEFAULT
+
+    return overlay_info
+
+  @staticmethod
+  def _build_ford_overlay_text_lines(d_rel: float, v_rel: float, v_ego: float,
+                                     overlay_info: int, is_metric: bool) -> list[str]:
+    text_lines = []
+
+    if overlay_info in (ChevronOptions.DISTANCE_ONLY, ChevronOptions.ALL):
       val = max(0.0, d_rel)
-      unit = "m" if ui_state.is_metric else "ft"
-      if not ui_state.is_metric:
+      unit = "m" if is_metric else "ft"
+      if not is_metric:
         val *= 3.28084
       text_lines.append(f"{val:.0f} {unit}")
 
-      # Speed
-      multiplier = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
+    if overlay_info in (ChevronOptions.SPEED_ONLY, ChevronOptions.ALL):
+      multiplier = CV.MS_TO_KPH if is_metric else CV.MS_TO_MPH
       val = max(0.0, (v_rel + v_ego) * multiplier)
-      unit = "km/h" if ui_state.is_metric else "mph"
+      unit = "km/h" if is_metric else "mph"
       text_lines.append(f"{val:.0f} {unit}")
 
-      # Lead time
+    if overlay_info in (ChevronOptions.TTC_ONLY, ChevronOptions.ALL):
       val = (d_rel / v_ego) if (d_rel > 0 and v_ego > 0) else 0.0
-      ttc_text = f"{val:.1f} s" if (0 < val < 200) else "---"
-      text_lines.append(ttc_text)
+      text_lines.append(f"{val:.1f} s" if (0 < val < 200) else "---")
 
-      return text_lines
-    else:
-      return ChevronMetrics._build_text_lines(d_rel, v_rel, v_ego)
+    return text_lines
+
+  def _build_text_lines_bp(self, d_rel: float, v_rel: float, v_ego: float) -> list[str]:
+    """Build text lines - Ford overlay uses its own selector, otherwise respects the shared setting."""
+    if self.ford_overlay_enabled:
+      return self._build_ford_overlay_text_lines(d_rel, v_rel, v_ego, self._get_ford_overlay_info(), ui_state.is_metric)
+
+    return ChevronMetrics._build_text_lines(d_rel, v_rel, v_ego)
 
   def _render_text_lines_bp(self, text_lines: list[str], lead_vehicle,
                             sz: float, rect: rl.Rectangle, is_radar: bool, inverted: bool = False):
@@ -100,7 +120,7 @@ class ChevronMetricsBP(ChevronMetrics):
     text_color = rl.Color(255, 255, 255, alpha)
     shadow_color = rl.Color(0, 0, 0, int(200 * self._lead_status_alpha))
 
-    if self.ford_overlay_enabled and len(text_lines) == 3:
+    if self.ford_overlay_enabled and text_lines:
       # BluePilot: Horizontal boxed layout with colored borders, scaled by overlay size
       scale = self.overlay_scale
       font_size = int(60 * scale)
@@ -178,13 +198,9 @@ class ChevronMetricsBP(ChevronMetrics):
 
         current_x += box_width + box_spacing
 
-      box = None
-      if len(box_rects) == 1:
-        box = box_rects[0]
-      elif len(box_rects) == 3:
-        box = box_rects[1]
+      box = box_rects[len(box_rects) // 2] if box_rects else None
 
-      if box != None:
+      if box is not None:
         center_x = box.x + box.width / 2
         if inverted:
           # Chevron flipped: wide base at top (touching overlay bottom), apex pointing down
@@ -212,6 +228,8 @@ class ChevronMetricsBP(ChevronMetrics):
       rl.draw_circle_v(chevron[2], r, glow_color)
 
     else:
+      chevron_x = lead_vehicle.chevron[1][0]
+      chevron_y = lead_vehicle.chevron[1][1]
       # Fall back to base vertical stack rendering
       self._render_text_lines(text_lines, chevron_x, chevron_y, sz, rect)
 

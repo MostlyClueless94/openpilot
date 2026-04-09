@@ -164,6 +164,26 @@ class BluePilotLayout(Widget):
       icon="speed_limit.png"
     )
 
+    try:
+      overlay_info_value = int(self._safe_get(self._params, "FordPrefRadarOverlayInfo") or 4)
+    except (TypeError, ValueError):
+      overlay_info_value = 4
+    overlay_info_value = min(max(overlay_info_value, 1), 4)
+    try:
+      if self._safe_get(self._params, "FordPrefRadarOverlayInfo") is None:
+        self._params.put("FordPrefRadarOverlayInfo", str(overlay_info_value))
+    except UnknownKeyName:
+      pass
+    self._radar_overlay_info_btn = multiple_button_item(
+      lambda: tr("Radar Overlay Info"),
+      lambda: tr("Choose which lead metric the Ford radar overlay shows."),
+      buttons=[lambda: tr("Distance"), lambda: tr("Speed"), lambda: tr("Time"), lambda: tr("All")],
+      button_width=170,
+      callback=self._set_overlay_info,
+      selected_index=overlay_info_value - 1,
+      icon="speed_limit.png"
+    )
+
     # Hybrid battery status toggle
     self._show_hybrid_battery_status = toggle_item(
       lambda: tr("Show Hybrid/EV Battery Status"),
@@ -414,6 +434,7 @@ class BluePilotLayout(Widget):
       self._animate_steering_wheel,
       self._show_ford_radar_overlay,
       self._radar_overlay_size_btn,
+      self._radar_overlay_info_btn,
       self._show_hybrid_battery_status,
       self._show_hybrid_power_flow,
       self._hybrid_gauge_size_btn,
@@ -461,12 +482,20 @@ class BluePilotLayout(Widget):
       item.action_item.set_state(state)
 
     # Update button enabled states
-    self._radar_overlay_size_btn.action_item.set_enabled(self._safe_get_bool(ui_state.params, "FordPrefShowRadarLeadOverlay"))
+    overlay_enabled = fresh.get("FordPrefShowRadarLeadOverlay") if "FordPrefShowRadarLeadOverlay" in fresh else self._safe_get_bool(ui_state.params, "FordPrefShowRadarLeadOverlay")
+    self._radar_overlay_size_btn.action_item.set_enabled(overlay_enabled)
+    self._radar_overlay_info_btn.action_item.set_enabled(overlay_enabled)
     try:
       overlay_idx = int(self._safe_get(ui_state.params, "FordPrefRadarOverlaySize") or 1)
     except (TypeError, ValueError):
       overlay_idx = 1
     self._radar_overlay_size_btn.action_item.set_selected_button(overlay_idx)
+    try:
+      overlay_info_value = int(self._safe_get(ui_state.params, "FordPrefRadarOverlayInfo") or 4)
+    except (TypeError, ValueError):
+      overlay_info_value = 4
+    overlay_info_value = min(max(overlay_info_value, 1), 4)
+    self._radar_overlay_info_btn.action_item.set_selected_button(overlay_info_value - 1)
     # Hybrid gauge size and style: enable only when power flow gauge is enabled (NOT battery status)
     self._hybrid_gauge_size_btn.action_item.set_enabled(
       lambda: self._safe_get_bool(ui_state.params, "FordPrefHybridPowerFlow")
@@ -624,6 +653,10 @@ class BluePilotLayout(Widget):
   def _set_overlay_size(self, button_index: int):
     """Handle overlay size button selection."""
     self._params.put("FordPrefRadarOverlaySize", button_index)
+
+  def _set_overlay_info(self, button_index: int):
+    """Handle radar overlay info selection. Buttons are 0-3, param stores 1-4."""
+    self._params.put("FordPrefRadarOverlayInfo", button_index + 1)
 
   def _set_hybrid_gauge_size(self, button_index: int):
     """Handle hybrid gauge size button selection. Buttons are 0/1/2, param stores 1/2/3."""

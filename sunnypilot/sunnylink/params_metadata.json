@@ -1604,6 +1604,16 @@
     "title": "BluePilot: Radar Overlay Size (C3X)",
     "description": "Sets the size of the radar lead overlay chevron and info boxes. 0=Small, 1=Medium, 2=Large."
   },
+  "FordPrefRadarOverlayInfo": {
+    "title": "BluePilot: Radar Overlay Info (C3X)",
+    "description": "Selects which Ford radar overlay metric is shown on the C3X lead chevron. When disabled via the master radar overlay toggle, nothing is shown regardless of this selection.",
+    "options": [
+      { "value": 1, "label": "Distance" },
+      { "value": 2, "label": "Speed" },
+      { "value": 3, "label": "Time" },
+      { "value": 4, "label": "All" }
+    ]
+  },
   "FordPrefHybridBatteryStatus": {
     "title": "BluePilot: Show Hybrid/EV Battery Status (C3X)",
     "description": "Displays hybrid/EV battery status including state of charge (SOC), voltage, and current (amps) on the UI."
