@@ -12,6 +12,30 @@ When we make meaningful project changes, add a new dated entry near the top with
 
 ## 2026-04-08
 
+### `repo/home move` move the personal MostlyClueless branch into the BluePilot repo
+
+What changed:
+- Moved the personal `MostlyClueless` branch home from `MostlyClueless94/sunnypilot` to `MostlyClueless94/bluepilot`.
+- Kept the branch name `MostlyClueless` so the personal branch line stays recognizable during the cutover.
+- Left `bp-dev` untouched in the BluePilot repo as the clean upstream-tracking base for future BluePilot PR work.
+- Left `subi-staging` and `subi-1.0` in the old repo so the Subaru-focused tested and stable lanes remain separate.
+
+Why:
+- The goal is to separate the personal `MostlyClueless` development lane from the `subi` project without forcing an immediate internal namespace cleanup.
+- Hosting the personal branch in the BluePilot repo makes day-to-day organization cleaner and makes it easier to cut clean BluePilot PR branches from `bp-dev`.
+
+Branch/install implications:
+- Fresh installs for the personal branch should now target `MostlyClueless94/bluepilot:MostlyClueless`.
+- Existing `subi` users stay on the old repo lanes.
+- This is a repo-home move only; it does not claim the integrated `MostlyClueless` branch is itself directly upstreamable to BluePilot.
+
+Validation guidance:
+- Confirm the imported `MostlyClueless` branch in the BluePilot repo resolves to the expected cutover commit.
+- Confirm a fresh clone of `MostlyClueless94/bluepilot` on branch `MostlyClueless` checks out normally.
+- Confirm trusted-remote logic treats the BluePilot repo as an expected community fork remote.
+
+## 2026-04-08
+
 ### `subaru/soft-capture engage blend` add a MostlyClueless-only steering handoff experiment
 
 What changed:

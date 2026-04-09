@@ -105,6 +105,15 @@ class OpenpilotMetadata:
                                           "github.com/sunnyhaibin/openpilot")
 
   @property
+  def bluepilot_remote(self) -> bool:
+    return self.git_normalized_origin in ("github.com/BluePilotDev/bluepilot",
+                                          "github.com/MostlyClueless94/bluepilot")
+
+  @property
+  def community_remote(self) -> bool:
+    return self.sunnypilot_remote or self.bluepilot_remote
+
+  @property
   def git_normalized_origin(self) -> str:
     return self.git_origin \
       .replace("git@", "", 1) \

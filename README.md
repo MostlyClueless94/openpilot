@@ -1,4 +1,13 @@
 ![](https://user-images.githubusercontent.com/47793918/233812617-beab2e71-57b9-479e-8bff-c3931347ca40.png)
+ 
+## MostlyClueless Branch Home
+The personal `MostlyClueless` branch now lives under the BluePilot repo:
+* Primary home: https://github.com/MostlyClueless94/bluepilot/tree/MostlyClueless
+* BluePilot upstream baseline in that repo: `bp-dev`
+* Subaru-focused `subi-staging` and `subi-1.0` remain in `MostlyClueless94/sunnypilot`
+
+For future BluePilot pull requests, start from `bp-dev` topic branches. The `MostlyClueless` branch is the integrated personal branch and is not the recommended direct source branch for upstream PRs.
+
 
 ## 🌞 What is sunnypilot?
 [sunnypilot](https://github.com/sunnyhaibin/sunnypilot) is a fork of comma.ai's openpilot, an open source driver assistance system. sunnypilot offers the user a unique driving experience for over 300+ supported car makes and models with modified behaviors of driving assist engagements. sunnypilot complies with comma.ai's safety rules as accurately as possible.
