@@ -1,8 +1,10 @@
 import pyray as rl
+from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG, FONT_SIZES, COLORS
 from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed
 from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
@@ -36,6 +38,20 @@ class HudRendererBP(HudRendererSP):
 
   def _update_state(self) -> None:
     super()._update_state()
+
+    car_state = ui_state.sm['carState']
+    v_ego_cluster = car_state.vEgoCluster
+    default_speed_ms = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo
+    display_speed_ms = get_display_speed_ms(
+      ui_state.CP,
+      ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer"),
+      car_state.vEgo,
+      v_ego_cluster,
+      self.v_ego_cluster_seen,
+      default_speed_ms,
+    )
+    speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
+    self.speed = max(0.0, display_speed_ms * speed_conversion)
 
     self._brakes_on = should_highlight_braking_speed(
       self._bp_params.get_bool("ShowBrakeStatus"),

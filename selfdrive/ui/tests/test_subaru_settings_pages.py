@@ -14,16 +14,18 @@ def _read(path: Path) -> str:
   return path.read_text(encoding="utf-8")
 
 
-def test_tici_subaru_brand_page_hosts_stop_and_go_only():
+def test_tici_subaru_brand_page_hosts_stop_and_go_and_speedometer_toggle():
   source = _read(TICI_SUBARU)
   assert "class SubaruSettings(BrandSettings):" in source
   assert "def __init__(self):" in source
   assert "def update_settings(self):" in source
   assert 'param="SubaruStopAndGo"' in source
   assert 'param="SubaruStopAndGoManualParkingBrake"' in source
+  assert 'param="MCSubaruMatchVehicleSpeedometer"' in source
   assert "self.items = [" in source
   assert "self.stop_and_go_toggle," in source
   assert "self.stop_and_go_manual_parking_brake_toggle," in source
+  assert "self.match_vehicle_speedometer_toggle," in source
   assert 'param="MCSubaruAdvancedTuning"' not in source
   assert 'SectionHeader(tr("Lateral Tuning"))' not in source
   assert "Manual Yield Resume" not in source
@@ -40,6 +42,9 @@ def test_tici_subaru_brand_page_restores_stop_and_go_platform_logic():
   assert "config = CAR[platform].config" in source
   assert "self.has_stop_and_go = not (config.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID))" in source
   assert "toggle.action_item.set_enabled(self.has_stop_and_go and ui_state.is_offroad())" in source
+  assert "self.match_vehicle_speedometer_toggle.action_item.set_enabled(True)" in source
+  assert "self.match_vehicle_speedometer_toggle.set_description(" in source
+  assert "matches the vehicle dash or cluster speed when supported" in source
   assert 'Enable "Always Offroad" in Device panel, or turn vehicle off to toggle.' in source
   assert "strict=True" in source
   assert 'action_item.set_state(ui_state.params.get_bool("SubaruStopAndGo"))' not in source
@@ -72,6 +77,8 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'GreyBigButton("lateral\\ntuning")' in source
   assert 'BigParamControl("stop and go\\n(beta)", "SubaruStopAndGo")' in source
   assert '"SubaruStopAndGoManualParkingBrake"' in source
+  assert '"match vehicle\\nspeedometer"' in source
+  assert '"MCSubaruMatchVehicleSpeedometer"' in source
   assert 'BigParamControl("advanced\\ntuning", "MCSubaruAdvancedTuning")' in source
   assert 'BigParamControl("subaru steering\\nsmoothing", "MCSubaruSmoothingTune")' in source
   assert 'BigButton("smoothing\\nstrength")' in source
@@ -85,7 +92,6 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'ShowBrakeStatus' not in source
   assert 'DynamicPathColor' not in source
   assert 'BPShowConfidenceBall' not in source
-  assert 'MatchVehicleSpeedometer' not in source
   assert 'HideVEgoUI' not in source
 
 
@@ -115,6 +121,7 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   source = _read(MICI_SUBARU)
   assert "value = ui_state.params.get(key, return_default=True)" in source
   assert "self._set_advanced_tuning_visibility(advanced_tuning_enabled)" in source
+  assert '("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speedometer_toggle, True)' in source
   assert 'self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)' in source
   assert 'self._subaru_center_damping_btn.set_enabled(smoothing_enabled)' in source
   assert 'self._manual_yield_resume_speed_btn.set_enabled(resume_speed_enabled)' in source
@@ -130,11 +137,13 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '{"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
   assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
+  assert '{"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '"MCSubaruAdvancedTuning"' in metadata_source
+  assert '"MCSubaruMatchVehicleSpeedometer"' in metadata_source
   assert '"MCSubaruManualYieldResumeSpeedEnabled"' in metadata_source
   assert '"MCSubaruManualYieldResumeSpeed"' in metadata_source
   assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in metadata_source

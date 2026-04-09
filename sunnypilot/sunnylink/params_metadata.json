@@ -364,6 +364,10 @@
     "title": "Advanced Tuning",
     "description": "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
   },
+  "MCSubaruMatchVehicleSpeedometer": {
+    "title": "Match Vehicle Speedometer",
+    "description": "When enabled, the Subaru on-road speedometer matches the vehicle dash or cluster speed when supported. Turn it off to show true wheel-speed-based speed instead."
+  },
   "MCSubaruManualYieldResumeSpeedEnabled": {
     "title": "Custom Resume Speed",
     "description": "Enable a custom manual-yield resume speed. When off, steering reclaim speed falls back to the current validated default while keeping your saved speed selection."

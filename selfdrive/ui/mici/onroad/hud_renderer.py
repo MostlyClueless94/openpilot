@@ -2,6 +2,7 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.bp.mici.onroad.torque_bar_bp import TorqueBarBP as TorqueBar
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
@@ -165,7 +166,16 @@ class HudRenderer(Widget):
 
     v_ego_cluster = car_state.vEgoCluster
     self.v_ego_cluster_seen = self.v_ego_cluster_seen or v_ego_cluster != 0.0
-    v_ego = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo
+    default_speed_ms = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo
+    # BluePilot: Subaru-only dash-match speedometer toggle overrides the shared speed source choice.
+    v_ego = get_display_speed_ms(
+      ui_state.CP,
+      ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer"),
+      car_state.vEgo,
+      v_ego_cluster,
+      self.v_ego_cluster_seen,
+      default_speed_ms,
+    )
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
 

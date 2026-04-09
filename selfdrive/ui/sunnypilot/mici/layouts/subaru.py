@@ -40,6 +40,11 @@ class SubaruLayoutMici(NavScroller):
       "manual parking\nbrake stop and go",
       "SubaruStopAndGoManualParkingBrake",
     )
+    # BluePilot: Subaru-specific dash-match speedometer toggle lives on the main Subaru page, outside advanced tuning.
+    self._match_vehicle_speedometer_toggle = BigParamControl(
+      "match vehicle\nspeedometer",
+      "MCSubaruMatchVehicleSpeedometer",
+    )
     self._subaru_advanced_tuning_toggle = BigParamControl("advanced\ntuning", "MCSubaruAdvancedTuning")
     self._subaru_smoothing_toggle = BigParamControl("subaru steering\nsmoothing", "MCSubaruSmoothingTune")
     self._manual_yield_resume_speed_toggle = BigParamControl("custom resume\nspeed", "MCSubaruManualYieldResumeSpeedEnabled")
@@ -89,6 +94,7 @@ class SubaruLayoutMici(NavScroller):
       self._stop_and_go_header,
       self._stop_and_go_toggle,
       self._stop_and_go_manual_parking_brake_toggle,
+      self._match_vehicle_speedometer_toggle,
       self._lateral_header,
       self._subaru_advanced_tuning_toggle,
       self._subaru_smoothing_toggle,
@@ -104,6 +110,7 @@ class SubaruLayoutMici(NavScroller):
     self._refresh_toggles = (
       ("SubaruStopAndGo", self._stop_and_go_toggle, False),
       ("SubaruStopAndGoManualParkingBrake", self._stop_and_go_manual_parking_brake_toggle, False),
+      ("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speedometer_toggle, True),
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle, False),
       ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle, True),
       ("MCSubaruManualYieldResumeSpeedEnabled", self._manual_yield_resume_speed_toggle, True),
