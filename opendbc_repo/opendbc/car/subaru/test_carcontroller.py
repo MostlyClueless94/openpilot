@@ -7,9 +7,12 @@ from opendbc.car.subaru.fingerprints import FW_VERSIONS
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.carcontroller import (
   ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES,
+  ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT,
   ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS,
   ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES,
   ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS,
+  ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS,
+  ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS,
   CarController,
   LOW_SPEED_SMOOTH_MAX_SPEED,
   MADS_ONLY_MIN_SPEED,
@@ -37,6 +40,8 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldResumeSpeed",
     "MCSubaruManualYieldResumeSoftnessEnabled",
     "MCSubaruManualYieldResumeSoftness",
+    "MCSubaruManualYieldReleaseGuardEnabled",
+    "MCSubaruManualYieldReleaseGuardLevel",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
   )
@@ -71,11 +76,14 @@ class TestSubaruCarController(unittest.TestCase):
 
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
                         resume_speed_enabled=True, resume_softness_enabled=True,
-                        resume_speed_setting=None, resume_softness_setting=None):
+                        resume_speed_setting=None, resume_softness_setting=None,
+                        release_guard_enabled=False, release_guard_level=2):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
     self.params.put_bool("MCSubaruManualYieldResumeSpeedEnabled", resume_speed_enabled)
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
+    self.params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", release_guard_enabled)
+    self.params.put("MCSubaruManualYieldReleaseGuardLevel", str(release_guard_level))
     if resume_speed_setting is not None:
       self.params.put("MCSubaruManualYieldResumeSpeed", str(resume_speed_setting))
     if resume_softness_setting is not None:
@@ -88,6 +96,15 @@ class TestSubaruCarController(unittest.TestCase):
   def _set_resume_profile(controller, speed_setting=4, softness_setting=4):
     controller.mc_subaru_manual_yield_resume_speed = speed_setting
     controller.mc_subaru_manual_yield_resume_softness = softness_setting
+
+  @staticmethod
+  def _build_release_guard_cs(v_ego_raw, steering_angle_deg=10.0, steering_rate_deg=0.0, steering_pressed=False):
+    return TestSubaruCarController._build_cs(
+      v_ego_raw,
+      steering_angle_deg,
+      steering_pressed=steering_pressed,
+      steering_rate_deg=steering_rate_deg,
+    )
 
   def _prime_angle_driver_override_ramp(self, controller, cc, v_ego_raw=8.0, measured_angle=10.0,
                                         speed_setting=4, softness_setting=4, use_current_profile=False):
@@ -107,6 +124,23 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[expected_speed_setting])
     self.assertAlmostEqual(controller.angle_driver_override_ramp_start_angle, measured_angle)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[expected_softness_setting])
+    return released_cs
+
+  def _prime_angle_driver_override_release_guard(self, controller, cc, *, v_ego_raw=8.0, measured_angle=10.0,
+                                                 steering_rate_deg=0.0, speed_setting=4, softness_setting=4,
+                                                 use_current_profile=False):
+    if not use_current_profile:
+      self._set_resume_profile(controller, speed_setting, softness_setting)
+    controller.apply_angle_last = measured_angle
+
+    controller.handle_angle_lateral(cc, self._build_cs(v_ego_raw, measured_angle, steering_pressed=True))
+    released_cs = self._build_release_guard_cs(v_ego_raw, measured_angle, steering_rate_deg=steering_rate_deg)
+    for _ in range(ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES):
+      controller.handle_angle_lateral(cc, released_cs)
+
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
+    self.assertTrue(controller.angle_driver_override_release_guard_pending)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
     return released_cs
 
   def test_angle_driver_override_still_wins_in_mads_only(self):
@@ -257,6 +291,96 @@ class TestSubaruCarController(unittest.TestCase):
       controller.angle_driver_override_ramp_softness_exponent,
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT],
     )
+
+  def test_angle_driver_override_release_guard_off_preserves_current_reclaim_timing(self):
+    controller = self._build_controller(release_guard_enabled=False, release_guard_level=3)
+    cc = self._build_cc(True, True, 14.0)
+
+    self._prime_angle_driver_override_ramp(controller, cc)
+
+    self.assertFalse(controller.angle_driver_override_release_guard_pending)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+
+  def test_angle_driver_override_release_guard_blocks_immediate_reclaim_after_hold_expiry(self):
+    controller = self._build_controller(release_guard_enabled=True, release_guard_level=2)
+    cc = self._build_cc(True, True, 14.0)
+    released_cs = self._prime_angle_driver_override_release_guard(controller, cc)
+
+    required_frames = ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[1]
+    self.assertEqual(controller.angle_driver_override_release_guard_required_frames, required_frames)
+    self.assertEqual(controller.angle_driver_override_release_guard_rate_threshold, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS[1])
+
+    for expected_frames in range(1, required_frames):
+      controller.handle_angle_lateral(cc, released_cs)
+      self.assertTrue(controller.angle_driver_override_release_guard_pending)
+      self.assertEqual(controller.angle_driver_override_release_guard_confirm_frames, expected_frames)
+      self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
+
+  def test_angle_driver_override_release_guard_starts_ramp_after_quiet_confirmation(self):
+    controller = self._build_controller(release_guard_enabled=True, release_guard_level=2)
+    cc = self._build_cc(True, True, 14.0)
+    released_cs = self._prime_angle_driver_override_release_guard(controller, cc)
+
+    for _ in range(ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[1]):
+      controller.handle_angle_lateral(cc, released_cs)
+
+    self.assertFalse(controller.angle_driver_override_release_guard_pending)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertAlmostEqual(controller.angle_driver_override_ramp_start_angle, released_cs.out.steeringAngleDeg)
+
+  def test_angle_driver_override_release_guard_cancels_when_driver_input_returns(self):
+    controller = self._build_controller(release_guard_enabled=True, release_guard_level=2)
+    cc = self._build_cc(True, True, 14.0)
+    released_cs = self._prime_angle_driver_override_release_guard(controller, cc)
+
+    controller.handle_angle_lateral(cc, released_cs)
+    self.assertTrue(controller.angle_driver_override_release_guard_pending)
+
+    pressed_cs = self._build_release_guard_cs(8.0, steering_angle_deg=10.0, steering_rate_deg=2.5, steering_pressed=True)
+    msg = controller.handle_angle_lateral(cc, pressed_cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, pressed_cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertFalse(controller.angle_driver_override_release_guard_pending)
+    self.assertEqual(controller.angle_driver_override_hold_frames, ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
+
+  def test_angle_driver_override_release_guard_levels_change_confirmation_strictness(self):
+    light = self._build_controller(release_guard_enabled=True, release_guard_level=1)
+    strong = self._build_controller(release_guard_enabled=True, release_guard_level=3)
+    cc = self._build_cc(True, True, 14.0)
+    light_released_cs = self._prime_angle_driver_override_release_guard(light, cc, steering_rate_deg=2.5)
+    strong_released_cs = self._prime_angle_driver_override_release_guard(strong, cc, steering_rate_deg=2.5)
+
+    for _ in range(ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[0]):
+      light.handle_angle_lateral(cc, light_released_cs)
+      strong.handle_angle_lateral(cc, strong_released_cs)
+
+    self.assertFalse(light.angle_driver_override_release_guard_pending)
+    self.assertEqual(light.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertTrue(strong.angle_driver_override_release_guard_pending)
+    self.assertEqual(strong.angle_driver_override_release_guard_confirm_frames, 0)
+    self.assertEqual(strong.angle_driver_override_ramp_frames, 0)
+
+  def test_angle_driver_override_release_guard_preserves_resume_speed_and_softness_profiles_after_confirmation(self):
+    controller = self._build_controller(
+      release_guard_enabled=True,
+      release_guard_level=2,
+      resume_speed_enabled=True,
+      resume_softness_enabled=True,
+      resume_speed_setting=1,
+      resume_softness_setting=6,
+    )
+    cc = self._build_cc(True, True, 14.0)
+    released_cs = self._prime_angle_driver_override_release_guard(controller, cc, use_current_profile=True)
+
+    for _ in range(ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[1]):
+      controller.handle_angle_lateral(cc, released_cs)
+
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
+    self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[6])
 
   def test_angle_driver_override_ramp_progresses_monotonically_toward_live_target_in_mads_only(self):
     controller = self._build_controller()

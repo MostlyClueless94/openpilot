@@ -60,6 +60,10 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'matches the vehicle dash or cluster speed when supported' in source
   assert 'self._subaru_advanced_tuning.set_visible(True)' in source
   assert 'param="MCSubaruAdvancedTuning"' in source
+  assert 'param="MCSubaruManualYieldReleaseGuardEnabled"' in source
+  assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
+  assert '"Manual Yield Release Guard"' in source
+  assert '"Release Guard Strength"' in source
 
 
 def test_ford_brand_page_does_not_gain_subaru_controls():
@@ -98,8 +102,11 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigButton("manual yield\\nresume speed")' in source
   assert 'BigParamControl("custom resume\\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")' in source
   assert 'BigButton("manual yield\\nresume softness")' in source
+  assert 'BigParamControl("manual yield\\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")' in source
+  assert 'BigButton("release guard\\nstrength")' in source
   assert 'list(range(-3, 5))' in source
   assert 'list(range(7))' in source
+  assert 'list(range(1, 4))' in source
   assert 'ShowBrakeStatus' not in source
   assert 'DynamicPathColor' not in source
   assert 'BPShowConfidenceBall' not in source
@@ -133,12 +140,17 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   assert "value = ui_state.params.get(key, return_default=True)" in source
   assert "self._set_advanced_tuning_visibility(advanced_tuning_enabled)" in source
   assert '("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speedometer_toggle, True)' in source
+  assert '("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False)' in source
   assert 'self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)' in source
   assert 'self._subaru_center_damping_btn.set_enabled(smoothing_enabled)' in source
   assert 'self._manual_yield_resume_speed_btn.set_enabled(resume_speed_enabled)' in source
   assert 'self._manual_yield_resume_softness_btn.set_enabled(resume_softness_enabled)' in source
+  assert 'self._manual_yield_release_guard_btn.set_enabled(release_guard_enabled)' in source
+  assert 'self._manual_yield_release_guard_toggle.set_visible(enabled)' in source
+  assert 'self._manual_yield_release_guard_btn.set_visible(enabled)' in source
   assert 'self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4)))' in source
   assert 'self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6)))' in source
+  assert 'self._format_release_guard_label(max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3)))' in source
 
 
 def test_subaru_params_and_metadata_match_brand_scoped_defaults():
@@ -153,13 +165,19 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '{"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
+  assert '{"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
+  assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
   assert '"MCSubaruAdvancedTuning"' in metadata_source
   assert '"MCSubaruMatchVehicleSpeedometer"' in metadata_source
   assert '"MCSubaruManualYieldResumeSpeedEnabled"' in metadata_source
   assert '"MCSubaruManualYieldResumeSpeed"' in metadata_source
   assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in metadata_source
   assert '"MCSubaruManualYieldResumeSoftness"' in metadata_source
+  assert '"MCSubaruManualYieldReleaseGuardEnabled"' in metadata_source
+  assert '"MCSubaruManualYieldReleaseGuardLevel"' in metadata_source
   assert '"label": "Fastest"' in metadata_source
   assert '"label": "Slowest"' in metadata_source
   assert '"label": "Standard"' in metadata_source
   assert '"label": "Max Soft"' in metadata_source
+  assert '"label": "Light"' in metadata_source
+  assert '"label": "Strong"' in metadata_source

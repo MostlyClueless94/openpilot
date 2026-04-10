@@ -15,6 +15,7 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
+RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 ADVANCED_TUNING_DESC = "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
 SMOOTHING_TUNE_DESC = (
   "Enable Subaru low-speed steering tuning. When enabled, you can adjust smoothing and near-center damping below."
@@ -41,6 +42,14 @@ CUSTOM_RESUME_SPEED_DESC = (
 CUSTOM_RESUME_SOFTNESS_DESC = (
   "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default "
   + "while keeping your saved softness selection."
+)
+RELEASE_GUARD_DESC = (
+  "Keep Subaru manual-yield override active a bit longer after steering input briefly drops. "
+  + "This can reduce false reclaim jerks when you are still holding the wheel at a steady angle."
+)
+RELEASE_GUARD_STRENGTH_DESC = (
+  "Adjust how much confirmation Subaru waits for before reclaim begins after manual override. "
+  + "Higher levels wait longer for a clean release before the existing resume ramp starts."
 )
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
@@ -191,6 +200,22 @@ class MCCustomLayout(Widget):
       label_callback=self._format_resume_softness_label,
       inline=False,
     )
+    self._manual_yield_release_guard_enabled = toggle_item_sp(
+      title=lambda: tr("Manual Yield Release Guard"),
+      description=lambda: tr(RELEASE_GUARD_DESC),
+      param="MCSubaruManualYieldReleaseGuardEnabled",
+      initial_state=self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled"),
+    )
+    self._manual_yield_release_guard_level = option_item_sp(
+      title=lambda: tr("Release Guard Strength"),
+      description=lambda: tr(RELEASE_GUARD_STRENGTH_DESC),
+      param="MCSubaruManualYieldReleaseGuardLevel",
+      min_value=1,
+      max_value=3,
+      value_change_step=1,
+      label_callback=self._format_release_guard_label,
+      inline=False,
+    )
     self._subaru_soft_capture = toggle_item_sp(
       title=lambda: tr("Soft-Capture Engage Blend"),
       description=lambda: tr(SOFT_CAPTURE_DESC),
@@ -224,6 +249,8 @@ class MCCustomLayout(Widget):
       self._manual_yield_resume_speed,
       self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
+      self._manual_yield_release_guard_enabled,
+      self._manual_yield_release_guard_level,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
     ]
@@ -241,6 +268,10 @@ class MCCustomLayout(Widget):
     return tr(RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))])
 
   @staticmethod
+  def _format_release_guard_label(value: int) -> str:
+    return tr(RELEASE_GUARD_LEVEL_LABELS[max(0, min(value - 1, len(RELEASE_GUARD_LEVEL_LABELS) - 1))])
+
+  @staticmethod
   def _format_soft_capture_label(value: int) -> str:
     idx = max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))
     return tr(SOFT_CAPTURE_STRENGTH_LABELS[idx])
@@ -256,6 +287,8 @@ class MCCustomLayout(Widget):
     self._manual_yield_resume_speed.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
+    self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)
+    self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
 
@@ -264,6 +297,7 @@ class MCCustomLayout(Widget):
     smoothing_enabled = self._get_bool_param("MCSubaruSmoothingTune", True)
     resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     self._subaru_match_vehicle_speedometer.action_item.set_state(
       self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True)
     )
@@ -271,10 +305,12 @@ class MCCustomLayout(Widget):
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
     self._manual_yield_resume_speed_enabled.action_item.set_state(resume_speed_enabled)
     self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
+    self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)
     self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))
     self._subaru_center_damping.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 2), 4))
     self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
+    self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
     self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
@@ -282,6 +318,7 @@ class MCCustomLayout(Widget):
     self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)
     self._manual_yield_resume_speed.action_item.set_enabled(resume_speed_enabled)
     self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)
+    self._manual_yield_release_guard_level.action_item.set_enabled(release_guard_enabled)
     self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)
     self._set_subaru_section_visibility(advanced_tuning_enabled)
 

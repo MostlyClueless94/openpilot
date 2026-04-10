@@ -23,6 +23,7 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
+RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 
 
 class SubaruLayoutMici(NavScroller):
@@ -49,6 +50,7 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_smoothing_toggle = BigParamControl("subaru steering\nsmoothing", "MCSubaruSmoothingTune")
     self._manual_yield_resume_speed_toggle = BigParamControl("custom resume\nspeed", "MCSubaruManualYieldResumeSpeedEnabled")
     self._manual_yield_resume_softness_toggle = BigParamControl("custom resume\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")
+    self._manual_yield_release_guard_toggle = BigParamControl("manual yield\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")
 
     self._subaru_smoothing_strength_btn = BigButton("smoothing\nstrength")
     self._subaru_smoothing_strength_btn.set_click_callback(
@@ -90,6 +92,16 @@ class SubaruLayoutMici(NavScroller):
       )
     )
 
+    self._manual_yield_release_guard_btn = BigButton("release guard\nstrength")
+    self._manual_yield_release_guard_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._manual_yield_release_guard_btn,
+        "MCSubaruManualYieldReleaseGuardLevel",
+        list(range(1, 4)),
+        self._format_release_guard_label,
+      )
+    )
+
     self.main_items = [
       self._stop_and_go_header,
       self._stop_and_go_toggle,
@@ -104,6 +116,8 @@ class SubaruLayoutMici(NavScroller):
       self._manual_yield_resume_speed_btn,
       self._manual_yield_resume_softness_toggle,
       self._manual_yield_resume_softness_btn,
+      self._manual_yield_release_guard_toggle,
+      self._manual_yield_release_guard_btn,
     ]
     self._scroller.add_widgets(self.main_items)
 
@@ -115,6 +129,7 @@ class SubaruLayoutMici(NavScroller):
       ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle, True),
       ("MCSubaruManualYieldResumeSpeedEnabled", self._manual_yield_resume_speed_toggle, True),
       ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, True),
+      ("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False),
     )
 
   @staticmethod
@@ -150,6 +165,10 @@ class SubaruLayoutMici(NavScroller):
   def _format_resume_softness_label(value: int) -> str:
     return RESUME_SOFTNESS_LABELS[max(0, min(value, len(RESUME_SOFTNESS_LABELS) - 1))]
 
+  @staticmethod
+  def _format_release_guard_label(value: int) -> str:
+    return RELEASE_GUARD_LEVEL_LABELS[max(0, min(value - 1, len(RELEASE_GUARD_LEVEL_LABELS) - 1))]
+
   def _set_advanced_tuning_visibility(self, enabled: bool) -> None:
     self._subaru_smoothing_toggle.set_visible(enabled)
     self._subaru_smoothing_strength_btn.set_visible(enabled)
@@ -158,6 +177,8 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_resume_speed_btn.set_visible(enabled)
     self._manual_yield_resume_softness_toggle.set_visible(enabled)
     self._manual_yield_resume_softness_btn.set_visible(enabled)
+    self._manual_yield_release_guard_toggle.set_visible(enabled)
+    self._manual_yield_release_guard_btn.set_visible(enabled)
 
   def _show_selection_view(self, items, back_callback: Callable):
     self._scroller._items = items
@@ -211,11 +232,13 @@ class SubaruLayoutMici(NavScroller):
     smoothing_enabled = self._get_bool_param("MCSubaruSmoothingTune", True)
     resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     self._set_advanced_tuning_visibility(advanced_tuning_enabled)
     self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)
     self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
     self._manual_yield_resume_speed_btn.set_enabled(resume_speed_enabled)
     self._manual_yield_resume_softness_btn.set_enabled(resume_softness_enabled)
+    self._manual_yield_release_guard_btn.set_enabled(release_guard_enabled)
     self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))))
     self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 2), 4))))
     self._manual_yield_resume_speed_btn.set_value(
@@ -223,6 +246,9 @@ class SubaruLayoutMici(NavScroller):
     )
     self._manual_yield_resume_softness_btn.set_value(
       self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6)))
+    )
+    self._manual_yield_release_guard_btn.set_value(
+      self._format_release_guard_label(max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3)))
     )
 
   def show_event(self):

@@ -26,6 +26,12 @@ ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MIN = 0
 ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MAX = 6
 ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT = 4
 ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS = [1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 3.5]
+ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN = 1
+ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX = 3
+ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT = 2
+ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS = [4, 8, 12]  # additional steering command frames (~80/160/240 ms)
+ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS = [3.0, 2.0, 1.0]  # deg/s
+ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_ANGLE_DELTA = 1.0  # deg
 LOW_SPEED_SMOOTH_MAX_SPEED = 4.4704  # m/s (10 mph)
 LOW_SPEED_SMOOTH_DEADBAND_MAX = 0.8  # deg at 0 mph
 LOW_SPEED_SMOOTH_ALPHA_MIN = 0.35  # blend factor at 0 mph
@@ -91,6 +97,8 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_manual_yield_resume_speed = ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_DEFAULT
     self.mc_subaru_manual_yield_resume_softness_enabled = True
     self.mc_subaru_manual_yield_resume_softness = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
+    self.mc_subaru_manual_yield_release_guard_enabled = False
+    self.mc_subaru_manual_yield_release_guard_level = ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT
     self.mc_subaru_soft_capture_enabled = False
     self.mc_subaru_soft_capture_level = 3
     self.angle_driver_override_hold_frames = 0
@@ -98,6 +106,11 @@ class CarController(CarControllerBase, SnGCarController):
     self.angle_driver_override_ramp_total_frames = ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES
     self.angle_driver_override_ramp_start_angle = 0.0
     self.angle_driver_override_ramp_softness_exponent = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT]
+    self.angle_driver_override_release_guard_pending = False
+    self.angle_driver_override_release_guard_confirm_frames = 0
+    self.angle_driver_override_release_guard_required_frames = 0
+    self.angle_driver_override_release_guard_reference_angle = 0.0
+    self.angle_driver_override_release_guard_rate_threshold = 0.0
     self.lat_active_prev = False
     self.soft_capture_frame = -(SOFT_CAPTURE_LEVEL_PARAMS[-1][0] + 1)
     self.low_speed_straight_pending_direction = 0
@@ -147,6 +160,16 @@ class CarController(CarControllerBase, SnGCarController):
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MIN,
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MAX,
     ))]
+
+  @staticmethod
+  def _get_release_guard_confirm_frames(level: int) -> int:
+    idx = int(np.clip(level, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX)) - 1
+    return ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[idx]
+
+  @staticmethod
+  def _get_release_guard_rate_threshold(level: int) -> float:
+    idx = int(np.clip(level, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX)) - 1
+    return ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS[idx]
 
   def _get_soft_capture_level(self) -> int:
     if not self.mc_subaru_soft_capture_enabled:
@@ -201,6 +224,12 @@ class CarController(CarControllerBase, SnGCarController):
     ))
     self.mc_subaru_manual_yield_resume_softness = manual_yield_resume_softness if self.mc_subaru_manual_yield_resume_softness_enabled \
       else ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
+    self.mc_subaru_manual_yield_release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
+    self.mc_subaru_manual_yield_release_guard_level = int(np.clip(
+      self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT),
+      ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN,
+      ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX,
+    ))
     self.mc_subaru_soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self.mc_subaru_soft_capture_level = int(np.clip(
       self._get_int_param("MCSubaruSoftCaptureLevel", 3),
@@ -214,8 +243,16 @@ class CarController(CarControllerBase, SnGCarController):
     self.angle_driver_override_ramp_start_angle = 0.0
     self.angle_driver_override_ramp_softness_exponent = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT]
 
+  def _reset_angle_driver_override_release_guard(self):
+    self.angle_driver_override_release_guard_pending = False
+    self.angle_driver_override_release_guard_confirm_frames = 0
+    self.angle_driver_override_release_guard_required_frames = 0
+    self.angle_driver_override_release_guard_reference_angle = 0.0
+    self.angle_driver_override_release_guard_rate_threshold = 0.0
+
   def _reset_angle_driver_override_state(self):
     self.angle_driver_override_hold_frames = 0
+    self._reset_angle_driver_override_release_guard()
     self._reset_angle_driver_override_ramp()
 
   def _start_angle_driver_override_ramp(self, measured_angle: float):
@@ -227,19 +264,60 @@ class CarController(CarControllerBase, SnGCarController):
       self.mc_subaru_manual_yield_resume_softness
     )
 
-  def _update_angle_driver_override_state(self, steering_pressed: bool, lkas_allowed: bool) -> tuple[bool, bool]:
+  def _start_angle_driver_override_release_guard(self, measured_angle: float):
+    self.angle_driver_override_release_guard_pending = True
+    self.angle_driver_override_release_guard_confirm_frames = 0
+    self.angle_driver_override_release_guard_required_frames = self._get_release_guard_confirm_frames(
+      self.mc_subaru_manual_yield_release_guard_level
+    )
+    self.angle_driver_override_release_guard_reference_angle = measured_angle
+    self.angle_driver_override_release_guard_rate_threshold = self._get_release_guard_rate_threshold(
+      self.mc_subaru_manual_yield_release_guard_level
+    )
+
+  def _update_angle_driver_override_release_guard(self, measured_angle: float, steering_rate: float) -> bool:
+    if not self.angle_driver_override_release_guard_pending:
+      return False
+
+    within_angle_window = abs(measured_angle - self.angle_driver_override_release_guard_reference_angle) <= \
+      ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_ANGLE_DELTA
+    within_rate_window = abs(steering_rate) <= self.angle_driver_override_release_guard_rate_threshold
+
+    if within_angle_window and within_rate_window:
+      self.angle_driver_override_release_guard_confirm_frames += 1
+    else:
+      self.angle_driver_override_release_guard_confirm_frames = 0
+      self.angle_driver_override_release_guard_reference_angle = measured_angle
+
+    if self.angle_driver_override_release_guard_confirm_frames >= self.angle_driver_override_release_guard_required_frames:
+      self._reset_angle_driver_override_release_guard()
+      return True
+
+    return False
+
+  def _update_angle_driver_override_state(self, steering_pressed: bool, lkas_allowed: bool,
+                                          measured_angle: float, steering_rate: float) -> tuple[bool, bool]:
     if not lkas_allowed:
       self._reset_angle_driver_override_state()
       return False, False
 
     if steering_pressed:
       self.angle_driver_override_hold_frames = ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES
+      self._reset_angle_driver_override_release_guard()
       self._reset_angle_driver_override_ramp()
       return True, False
 
     if self.angle_driver_override_hold_frames > 0:
       self.angle_driver_override_hold_frames -= 1
       if self.angle_driver_override_hold_frames == 0:
+        if self.mc_subaru_manual_yield_release_guard_enabled:
+          self._start_angle_driver_override_release_guard(measured_angle)
+          return True, False
+        return True, True
+      return True, False
+
+    if self.angle_driver_override_release_guard_pending:
+      if self._update_angle_driver_override_release_guard(measured_angle, steering_rate):
         return True, True
       return True, False
 
@@ -422,6 +500,8 @@ class CarController(CarControllerBase, SnGCarController):
     angle_driver_override, ramp_will_start = self._update_angle_driver_override_state(
       CS.out.steeringPressed,
       lkas_allowed,
+      CS.out.steeringAngleDeg,
+      CS.out.steeringRateDeg,
     )
     lkas_request = lkas_allowed and not angle_driver_override
     capture_lkas_target = lkas_request or ramp_will_start
@@ -445,6 +525,17 @@ class CarController(CarControllerBase, SnGCarController):
       (
         f"angle driver override hold active={self.angle_driver_override_hold_frames > 0} "
         + f"frames={self.angle_driver_override_hold_frames} steeringPressed={CS.out.steeringPressed}"
+      ),
+    )
+    self._log_transition(
+      "angle_driver_override_release_guard",
+      self.angle_driver_override_release_guard_pending,
+      (
+        f"angle driver override release guard active={self.angle_driver_override_release_guard_pending} "
+        + f"frames={self.angle_driver_override_release_guard_confirm_frames}/"
+        + f"{self.angle_driver_override_release_guard_required_frames} "
+        + f"referenceAngle={self.angle_driver_override_release_guard_reference_angle:.2f} "
+        + f"rateThreshold={self.angle_driver_override_release_guard_rate_threshold:.2f}"
       ),
     )
 
