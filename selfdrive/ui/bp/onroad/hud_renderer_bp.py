@@ -4,7 +4,11 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.onroad.hud_renderer import UI_CONFIG, FONT_SIZES, COLORS
 from openpilot.selfdrive.ui.sunnypilot.onroad.brake_status import should_highlight_braking_speed
 from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
-from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import (
+  get_default_display_speed_ms,
+  get_display_speed_ms,
+  get_display_speed_value,
+)
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.selfdrive.ui.bp.lib.ui_debug_logger import bp_ui_log
@@ -27,6 +31,7 @@ class HudRendererBP(HudRendererSP):
     self._bp_params = Params()
     self._brakes_on = False
     self.speed_right = 0
+    self._display_speed_value = 0
     self._gradient_rect = None  # BluePilot: Full-width rect for header gradient
 
   def set_gradient_rect(self, rect: rl.Rectangle):
@@ -41,10 +46,16 @@ class HudRendererBP(HudRendererSP):
 
     car_state = ui_state.sm['carState']
     v_ego_cluster = car_state.vEgoCluster
-    default_speed_ms = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo
+    match_vehicle_speedometer = ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer")
+    default_speed_ms = get_default_display_speed_ms(
+      car_state.vEgo,
+      v_ego_cluster,
+      self.v_ego_cluster_seen,
+      ui_state.true_v_ego_ui,
+    )
     display_speed_ms = get_display_speed_ms(
       ui_state.CP,
-      ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer"),
+      match_vehicle_speedometer,
       car_state.vEgo,
       v_ego_cluster,
       self.v_ego_cluster_seen,
@@ -52,6 +63,12 @@ class HudRendererBP(HudRendererSP):
     )
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, display_speed_ms * speed_conversion)
+    self._display_speed_value = get_display_speed_value(
+      ui_state.CP,
+      match_vehicle_speedometer,
+      display_speed_ms,
+      speed_conversion,
+    )
 
     self._brakes_on = should_highlight_braking_speed(
       self._bp_params.get_bool("ShowBrakeStatus"),
@@ -96,7 +113,7 @@ class HudRendererBP(HudRendererSP):
     if self._bp_params.get_bool("HideVEgoUI"):
       self.speed_right = 0
       return
-    speed_text = str(round(self.speed))
+    speed_text = str(self._display_speed_value)
     speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
     speed_pos = rl.Vector2(
       rect.x + rect.width / 2 - speed_text_size.x / 2,

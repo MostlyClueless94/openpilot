@@ -2,7 +2,11 @@ import pyray as rl
 import numpy as np
 import time
 from openpilot.common.constants import CV
-from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import (
+  get_default_display_speed_ms,
+  get_display_speed_ms,
+  get_display_speed_value,
+)
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
@@ -138,15 +142,27 @@ class MiciComplication(Widget):
     shadow_color = rl.Color(0, 0, 0, 180)
 
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
-    display_speed_ms = get_display_speed_ms(
-      ui_state.CP,
-      self.params.get_bool("MCSubaruMatchVehicleSpeedometer"),
+    match_vehicle_speedometer = self.params.get_bool("MCSubaruMatchVehicleSpeedometer")
+    default_speed_ms = get_default_display_speed_ms(
       self._car_state.vEgo,
       self._car_state.vEgoCluster,
       self.v_ego_cluster_seen,
-      self._car_state.vEgoCluster,
+      ui_state.true_v_ego_ui,
     )
-    speed_text = str(round(max(0.0, display_speed_ms * speed_conversion)))
+    display_speed_ms = get_display_speed_ms(
+      ui_state.CP,
+      match_vehicle_speedometer,
+      self._car_state.vEgo,
+      self._car_state.vEgoCluster,
+      self.v_ego_cluster_seen,
+      default_speed_ms,
+    )
+    speed_text = str(get_display_speed_value(
+      ui_state.CP,
+      match_vehicle_speedometer,
+      display_speed_ms,
+      speed_conversion,
+    ))
     speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZE)
     pos_x = rect.x + rect.width - WIDTH - 5
     speed_pos = rl.Vector2(pos_x + ((WIDTH - speed_text_size.x) / 2), rect.y + rect.height * 0.66 - speed_text_size.y / 2)

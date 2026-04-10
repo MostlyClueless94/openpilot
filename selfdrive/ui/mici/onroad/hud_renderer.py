@@ -2,7 +2,11 @@ import pyray as rl
 from dataclasses import dataclass
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.bp.mici.onroad.torque_bar_bp import TorqueBarBP as TorqueBar
-from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import (
+  get_default_display_speed_ms,
+  get_display_speed_ms,
+  get_display_speed_value,
+)
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
@@ -105,6 +109,7 @@ class HudRenderer(Widget):
     self.set_speed: float = SET_SPEED_NA
     self._set_speed_changed_time: float = 0
     self.speed: float = 0.0
+    self._display_speed_value: int = 0
     self.v_ego_cluster_seen: bool = False
     self._engaged: bool = False
 
@@ -166,11 +171,17 @@ class HudRenderer(Widget):
 
     v_ego_cluster = car_state.vEgoCluster
     self.v_ego_cluster_seen = self.v_ego_cluster_seen or v_ego_cluster != 0.0
-    default_speed_ms = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo
+    match_vehicle_speedometer = ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer")
+    default_speed_ms = get_default_display_speed_ms(
+      car_state.vEgo,
+      v_ego_cluster,
+      self.v_ego_cluster_seen,
+      ui_state.true_v_ego_ui,
+    )
     # BluePilot: Subaru-only dash-match speedometer toggle overrides the shared speed source choice.
     v_ego = get_display_speed_ms(
       ui_state.CP,
-      ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer"),
+      match_vehicle_speedometer,
       car_state.vEgo,
       v_ego_cluster,
       self.v_ego_cluster_seen,
@@ -178,6 +189,12 @@ class HudRenderer(Widget):
     )
     speed_conversion = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed = max(0.0, v_ego * speed_conversion)
+    self._display_speed_value = get_display_speed_value(
+      ui_state.CP,
+      match_vehicle_speedometer,
+      v_ego,
+      speed_conversion,
+    )
 
   def _render(self, rect: rl.Rectangle) -> None:
     """Render HUD elements to the screen."""
@@ -278,7 +295,7 @@ class HudRenderer(Widget):
 
   def _draw_current_speed(self, rect: rl.Rectangle) -> None:
     """Draw the current vehicle speed and unit."""
-    speed_text = str(round(self.speed))
+    speed_text = str(self._display_speed_value)
     speed_text_size = measure_text_cached(self._font_bold, speed_text, FONT_SIZES.current_speed)
     speed_pos = rl.Vector2(rect.x + rect.width / 2 - speed_text_size.x / 2, 180 - speed_text_size.y / 2)
     rl.draw_text_ex(self._font_bold, speed_text, speed_pos, FONT_SIZES.current_speed, 0, COLORS.WHITE)

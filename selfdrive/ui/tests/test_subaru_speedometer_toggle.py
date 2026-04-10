@@ -31,36 +31,48 @@ def test_speed_display_helper_handles_subaru_override_and_default_passthrough():
   assert module.is_subaru_platform(FakeCp("subaru")) is True
   assert module.is_subaru_platform(FakeCp("ford")) is False
 
+  assert module.get_default_display_speed_ms(10.0, 12.0, True, False) == 12.0
+  assert module.get_default_display_speed_ms(10.0, 12.0, True, True) == 10.0
   assert module.get_display_speed_ms(FakeCp("subaru"), True, 10.0, 12.0, True, 12.0) == 12.0
   assert module.get_display_speed_ms(FakeCp("subaru"), True, 10.0, 12.0, False, 12.0) == 10.0
   assert module.get_display_speed_ms(FakeCp("subaru"), False, 10.0, 12.0, True, 12.0) == 10.0
   assert module.get_display_speed_ms(FakeCp("ford"), False, 10.0, 12.0, True, 99.0) == 99.0
+  assert module.get_display_speed_value(FakeCp("subaru"), True, 40.9, 1.0) == 40
+  assert module.get_display_speed_value(FakeCp("subaru"), False, 40.9, 1.0) == 41
+  assert module.get_display_speed_value(FakeCp("ford"), False, 40.9, 1.0) == 41
 
 
 def test_tici_bp_hud_uses_subaru_speedometer_toggle_for_current_speed():
   source = _read(TICI_BP_HUD)
 
-  assert "from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms" in source
+  assert "get_default_display_speed_ms," in source
   assert 'ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer")' in source
+  assert "ui_state.true_v_ego_ui" in source
   assert "display_speed_ms = get_display_speed_ms(" in source
-  assert "self.speed = max(0.0, display_speed_ms * speed_conversion)" in source
+  assert "self._display_speed_value = get_display_speed_value(" in source
+  assert "speed_text = str(self._display_speed_value)" in source
 
 
 def test_mici_hud_uses_subaru_speedometer_toggle_for_current_speed():
   source = _read(MICI_HUD)
 
-  assert "from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms" in source
+  assert "get_default_display_speed_ms," in source
   assert 'ui_state.params.get_bool("MCSubaruMatchVehicleSpeedometer")' in source
-  assert "default_speed_ms = v_ego_cluster if self.v_ego_cluster_seen else car_state.vEgo" in source
+  assert "ui_state.true_v_ego_ui" in source
+  assert "default_speed_ms = get_default_display_speed_ms(" in source
   assert "v_ego = get_display_speed_ms(" in source
+  assert "self._display_speed_value = get_display_speed_value(" in source
+  assert "speed_text = str(self._display_speed_value)" in source
 
 
 def test_mici_complication_only_applies_toggle_to_current_speed_mode():
   source = _read(MICI_COMPLICATION)
 
-  assert "from openpilot.selfdrive.ui.sunnypilot.onroad.speed_display import get_display_speed_ms" in source
+  assert "get_default_display_speed_ms," in source
   assert "self.v_ego_cluster_seen: bool = False" in source
   assert "display_speed_ms = get_display_speed_ms(" in source
   assert 'self.params.get_bool("MCSubaruMatchVehicleSpeedometer")' in source
-  assert "speed_text = str(round(max(0.0, display_speed_ms * speed_conversion)))" in source
+  assert "ui_state.true_v_ego_ui" in source
+  assert "default_speed_ms = get_default_display_speed_ms(" in source
+  assert "speed_text = str(get_display_speed_value(" in source
   assert "self.speed = max(0.0, self._car_state.vEgoCluster * speed_conversion + speed_delta)" in source

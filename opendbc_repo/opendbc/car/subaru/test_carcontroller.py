@@ -252,6 +252,23 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[6])
 
+  def test_angle_driver_override_resume_speed_reenable_restores_saved_custom_frames(self):
+    disabled = self._build_controller(
+      resume_speed_enabled=False,
+      resume_softness_enabled=True,
+      resume_speed_setting=1,
+      resume_softness_setting=4,
+    )
+    reenabled = self._build_controller(
+      resume_speed_enabled=True,
+      resume_softness_enabled=True,
+      resume_speed_setting=1,
+      resume_softness_setting=4,
+    )
+
+    self.assertEqual(disabled.mc_subaru_manual_yield_resume_speed, ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_DEFAULT)
+    self.assertEqual(reenabled.mc_subaru_manual_yield_resume_speed, 1)
+
   def test_angle_driver_override_resume_softness_profiles_map_to_expected_exponents(self):
     expected_exponents = {
       0: 1.0,
@@ -291,6 +308,23 @@ class TestSubaruCarController(unittest.TestCase):
       controller.angle_driver_override_ramp_softness_exponent,
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT],
     )
+
+  def test_angle_driver_override_resume_softness_reenable_restores_saved_custom_exponent(self):
+    disabled = self._build_controller(
+      resume_speed_enabled=True,
+      resume_softness_enabled=False,
+      resume_speed_setting=4,
+      resume_softness_setting=6,
+    )
+    reenabled = self._build_controller(
+      resume_speed_enabled=True,
+      resume_softness_enabled=True,
+      resume_speed_setting=4,
+      resume_softness_setting=6,
+    )
+
+    self.assertEqual(disabled.mc_subaru_manual_yield_resume_softness, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT)
+    self.assertEqual(reenabled.mc_subaru_manual_yield_resume_softness, 6)
 
   def test_angle_driver_override_release_guard_off_preserves_current_reclaim_timing(self):
     controller = self._build_controller(release_guard_enabled=False, release_guard_level=3)
@@ -362,6 +396,27 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertTrue(strong.angle_driver_override_release_guard_pending)
     self.assertEqual(strong.angle_driver_override_release_guard_confirm_frames, 0)
     self.assertEqual(strong.angle_driver_override_ramp_frames, 0)
+
+  def test_angle_driver_override_release_guard_reenable_restores_saved_strength(self):
+    disabled = self._build_controller(release_guard_enabled=False, release_guard_level=3)
+    enabled = self._build_controller(release_guard_enabled=True, release_guard_level=3)
+    cc = self._build_cc(True, True, 14.0)
+
+    self.assertFalse(disabled.mc_subaru_manual_yield_release_guard_enabled)
+    self.assertEqual(disabled.mc_subaru_manual_yield_release_guard_level, 3)
+
+    released_cs = self._prime_angle_driver_override_release_guard(enabled, cc)
+
+    self.assertEqual(
+      enabled.angle_driver_override_release_guard_required_frames,
+      ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[2],
+    )
+    self.assertEqual(
+      enabled.angle_driver_override_release_guard_rate_threshold,
+      ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS[2],
+    )
+    self.assertTrue(enabled.angle_driver_override_release_guard_pending)
+    self.assertAlmostEqual(released_cs.out.steeringAngleDeg, 10.0)
 
   def test_angle_driver_override_release_guard_preserves_resume_speed_and_softness_profiles_after_confirmation(self):
     controller = self._build_controller(
@@ -459,6 +514,13 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertEqual(controller._get_soft_capture_level(), 0)
     self.assertAlmostEqual(controller._get_soft_capture_angle(18.0, 10.0), 18.0)
+
+  def test_soft_capture_reenable_restores_saved_level(self):
+    disabled = self._build_controller(soft_capture_enabled=False, soft_capture_level=5)
+    reenabled = self._build_controller(soft_capture_enabled=True, soft_capture_level=5)
+
+    self.assertEqual(disabled._get_soft_capture_level(), 0)
+    self.assertEqual(reenabled._get_soft_capture_level(), 5)
 
   def test_soft_capture_engage_edge_starts_ramp_and_reduces_first_reclaim_step(self):
     baseline = self._build_controller(soft_capture_enabled=False)
@@ -900,6 +962,25 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertFalse(active)
     self.assertEqual(deadzone, 0.0)
     self.assertAlmostEqual(filtered_target, 1.2)
+
+  def test_low_speed_smoothing_toggle_off_bypasses_entire_low_speed_stack(self):
+    controller = self._build_controller()
+    controller.apply_angle_last = 0.5
+    controller.mc_subaru_smoothing_tune = False
+    controller.mc_subaru_smoothing_strength = 4
+    controller.mc_subaru_center_damping_strength = 4
+    cs = self._build_cs(3.0, 0.2)
+
+    target, delta_deadzone_active, delta_deadzone, center_damping_active, sign_flip_clamped = \
+      controller._get_angle_lkas_target(1.2, cs, True)
+
+    self.assertAlmostEqual(target, 1.2)
+    self.assertFalse(delta_deadzone_active)
+    self.assertEqual(delta_deadzone, 0.0)
+    self.assertFalse(center_damping_active)
+    self.assertFalse(sign_flip_clamped)
+    self.assertEqual(controller.low_speed_straight_pending_direction, 0)
+    self.assertEqual(controller.low_speed_straight_pending_frames, 0)
 
   def test_outback_2023_angle_steering_route_still_present(self):
     route = next(route for route in routes if route.platform == CAR.SUBARU_OUTBACK_2023)

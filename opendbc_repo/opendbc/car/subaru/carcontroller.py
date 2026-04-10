@@ -341,6 +341,10 @@ class CarController(CarControllerBase, SnGCarController):
     return ramped_target, True
 
   def _get_angle_lkas_target(self, raw_target: float, CS, capture_lkas_target: bool) -> tuple[float, bool, float, bool, bool]:
+    if not self.mc_subaru_smoothing_tune:
+      self._reset_low_speed_straight_stability()
+      return raw_target, False, 0.0, False, False
+
     if capture_lkas_target and CS.out.vEgoRaw < LOW_SPEED_SMOOTH_MAX_SPEED:
       # Keep the existing MC low-speed stack intact, with the Lukas-inspired
       # near-center delta deadzone now enabled by default.

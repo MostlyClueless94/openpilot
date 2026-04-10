@@ -70,5 +70,9 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   assert "MCSubaruManualYieldReleaseGuard" not in ford_carstate_source
   assert "MCSubaruManualYieldTorqueThreshold" not in ford_controller_source
   assert "MCSubaruManualYieldTorqueThreshold" not in ford_carstate_source
+  assert "MCSubaruMatchVehicleSpeedometer" not in ford_controller_source
+  assert "MCSubaruMatchVehicleSpeedometer" not in ford_carstate_source
+  assert "MCSubaruSmoothingTune" not in ford_controller_source
+  assert "MCSubaruSmoothingTune" not in ford_carstate_source
   assert "angle_driver_override_release_guard" not in ford_controller_source
   assert "angle_driver_override_release_guard" not in ford_carstate_source
