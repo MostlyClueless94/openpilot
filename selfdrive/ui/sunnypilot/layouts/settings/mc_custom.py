@@ -66,6 +66,10 @@ SHOW_VEHICLE_BRAKE_STATUS_DESC = (
   "Display current speed in red whenever the vehicle is braking, "
   + "including ACC/openpilot braking when available."
 )
+MATCH_VEHICLE_SPEEDOMETER_DESC = (
+  "When enabled, the Subaru on-road speedometer matches the vehicle dash or cluster speed when supported. "
+  + "Turn it off to show true wheel-speed-based speed instead."
+)
 
 
 class MCCustomLayout(Widget):
@@ -117,6 +121,12 @@ class MCCustomLayout(Widget):
       initial_state=self._params.get_bool("MCShowVehicleBrakeStatus"),
     )
     self._subaru_header = SectionHeader(tr("Subaru"))
+    self._subaru_match_vehicle_speedometer = toggle_item_sp(
+      title=lambda: tr("Match Vehicle Speedometer"),
+      description=lambda: tr(MATCH_VEHICLE_SPEEDOMETER_DESC),
+      param="MCSubaruMatchVehicleSpeedometer",
+      initial_state=self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True),
+    )
     self._subaru_advanced_tuning = toggle_item_sp(
       title=lambda: tr("Advanced Tuning"),
       description=lambda: tr(ADVANCED_TUNING_DESC),
@@ -205,6 +215,7 @@ class MCCustomLayout(Widget):
       SectionHeader(tr("Driving Status")),
       self._show_vehicle_brake_status,
       self._subaru_header,
+      self._subaru_match_vehicle_speedometer,
       self._subaru_advanced_tuning,
       self._subaru_smoothing_tune,
       self._subaru_smoothing_strength,
@@ -236,6 +247,7 @@ class MCCustomLayout(Widget):
 
   def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool) -> None:
     self._subaru_header.set_visible(True)
+    self._subaru_match_vehicle_speedometer.set_visible(True)
     self._subaru_advanced_tuning.set_visible(True)
     self._subaru_smoothing_tune.set_visible(advanced_tuning_enabled)
     self._subaru_smoothing_strength.set_visible(advanced_tuning_enabled)
@@ -252,6 +264,9 @@ class MCCustomLayout(Widget):
     smoothing_enabled = self._get_bool_param("MCSubaruSmoothingTune", True)
     resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    self._subaru_match_vehicle_speedometer.action_item.set_state(
+      self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True)
+    )
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
     self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
     self._manual_yield_resume_speed_enabled.action_item.set_state(resume_speed_enabled)

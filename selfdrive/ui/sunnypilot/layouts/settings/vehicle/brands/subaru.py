@@ -28,18 +28,10 @@ class SubaruSettings(BrandSettings):
       param="SubaruStopAndGoManualParkingBrake",
       callback=self._on_toggle_changed,
     )
-    # BluePilot: Subaru-specific dash-match speedometer toggle on the main Subaru page.
-    self.match_vehicle_speedometer_toggle = toggle_item_sp(
-      tr("Match Vehicle Speedometer"),
-      "",
-      param="MCSubaruMatchVehicleSpeedometer",
-      callback=self._on_toggle_changed,
-    )
 
     self.items = [
       self.stop_and_go_toggle,
       self.stop_and_go_manual_parking_brake_toggle,
-      self.match_vehicle_speedometer_toggle,
     ]
 
   def _on_toggle_changed(self, _):
@@ -75,12 +67,3 @@ class SubaruSettings(BrandSettings):
     for toggle, desc in zip([self.stop_and_go_toggle, self.stop_and_go_manual_parking_brake_toggle], descriptions, strict=True):
       toggle.action_item.set_enabled(self.has_stop_and_go and ui_state.is_offroad())
       toggle.set_description(f"<b>{disabled_msg}</b><br><br>{desc}" if disabled_msg else desc)
-
-    # BluePilot: This Subaru-only UI toggle overrides the shared True Speed choice for Subaru on-road speed rendering.
-    self.match_vehicle_speedometer_toggle.action_item.set_enabled(True)
-    self.match_vehicle_speedometer_toggle.set_description(
-      tr(
-        "When enabled, the Subaru on-road speedometer matches the vehicle dash or cluster speed when supported. "
-        + "Turn it off to show true wheel-speed-based speed instead."
-      )
-    )

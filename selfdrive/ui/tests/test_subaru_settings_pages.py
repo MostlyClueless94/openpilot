@@ -3,6 +3,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TICI_SUBARU = REPO_ROOT / "selfdrive/ui/sunnypilot/layouts/settings/vehicle/brands/subaru.py"
+TICI_MC_CUSTOM = REPO_ROOT / "selfdrive/ui/sunnypilot/layouts/settings/mc_custom.py"
 TICI_FORD = REPO_ROOT / "selfdrive/ui/sunnypilot/layouts/settings/vehicle/brands/ford.py"
 MICI_VEHICLE = REPO_ROOT / "selfdrive/ui/bp/mici/layouts/settings/vehicle_mici.py"
 MICI_SUBARU = REPO_ROOT / "selfdrive/ui/sunnypilot/mici/layouts/subaru.py"
@@ -14,18 +15,17 @@ def _read(path: Path) -> str:
   return path.read_text(encoding="utf-8")
 
 
-def test_tici_subaru_brand_page_hosts_stop_and_go_and_speedometer_toggle():
+def test_tici_subaru_brand_page_only_hosts_stop_and_go_controls():
   source = _read(TICI_SUBARU)
   assert "class SubaruSettings(BrandSettings):" in source
   assert "def __init__(self):" in source
   assert "def update_settings(self):" in source
   assert 'param="SubaruStopAndGo"' in source
   assert 'param="SubaruStopAndGoManualParkingBrake"' in source
-  assert 'param="MCSubaruMatchVehicleSpeedometer"' in source
   assert "self.items = [" in source
   assert "self.stop_and_go_toggle," in source
   assert "self.stop_and_go_manual_parking_brake_toggle," in source
-  assert "self.match_vehicle_speedometer_toggle," in source
+  assert "MCSubaruMatchVehicleSpeedometer" not in source
   assert 'param="MCSubaruAdvancedTuning"' not in source
   assert 'SectionHeader(tr("Lateral Tuning"))' not in source
   assert "Manual Yield Resume" not in source
@@ -42,13 +42,24 @@ def test_tici_subaru_brand_page_restores_stop_and_go_platform_logic():
   assert "config = CAR[platform].config" in source
   assert "self.has_stop_and_go = not (config.flags & (SubaruFlags.GLOBAL_GEN2 | SubaruFlags.HYBRID))" in source
   assert "toggle.action_item.set_enabled(self.has_stop_and_go and ui_state.is_offroad())" in source
-  assert "self.match_vehicle_speedometer_toggle.action_item.set_enabled(True)" in source
-  assert "self.match_vehicle_speedometer_toggle.set_description(" in source
-  assert "matches the vehicle dash or cluster speed when supported" in source
   assert 'Enable "Always Offroad" in Device panel, or turn vehicle off to toggle.' in source
   assert "strict=True" in source
   assert 'action_item.set_state(ui_state.params.get_bool("SubaruStopAndGo"))' not in source
   assert 'action_item.set_state(' not in source
+
+
+def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
+  source = _read(TICI_MC_CUSTOM)
+  assert 'MATCH_VEHICLE_SPEEDOMETER_DESC = (' in source
+  assert '"Match Vehicle Speedometer"' in source
+  assert 'param="MCSubaruMatchVehicleSpeedometer"' in source
+  assert 'initial_state=self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True)' in source
+  assert "self._subaru_match_vehicle_speedometer," in source
+  assert "self._subaru_match_vehicle_speedometer.set_visible(True)" in source
+  assert 'self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True)' in source
+  assert 'matches the vehicle dash or cluster speed when supported' in source
+  assert 'self._subaru_advanced_tuning.set_visible(True)' in source
+  assert 'param="MCSubaruAdvancedTuning"' in source
 
 
 def test_ford_brand_page_does_not_gain_subaru_controls():
