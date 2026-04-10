@@ -1,5 +1,6 @@
 import copy
 from cereal import messaging
+from openpilot.common.params import Params
 from opendbc.can import CANDefine, CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.carlog import carlog
@@ -10,6 +11,13 @@ from opendbc.car import CanSignalRateCalculator
 
 from opendbc.sunnypilot.car.subaru.mads import MadsCarState
 from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarState
+
+
+MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 10
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
+MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
+MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT = 80
+MANUAL_YIELD_TORQUE_THRESHOLD_REFRESH_FRAMES = 100
 
 
 class CarState(CarStateBase, MadsCarState, SnGCarState):
@@ -23,13 +31,62 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     self.angle_rate_calulator = CanSignalRateCalculator(50)
     self._debug_state = {}
     self.car_state_bp_msg = None
+    self.params = Params()
+    self.frame = 0
+    self.mc_subaru_manual_yield_torque_threshold_enabled = False
+    self.mc_subaru_manual_yield_torque_threshold = MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT
+    self._update_params()
 
   def _log_transition(self, key, value, message):
     if self._debug_state.get(key) != value:
       carlog.info(f"subaru[{self.CP.carFingerprint}] {message}")
       self._debug_state[key] = value
 
+  def _get_int_param(self, key: str, default: int = 0) -> int:
+    value = self.params.get(key, return_default=True)
+    try:
+      return int(value)
+    except (TypeError, ValueError):
+      return default
+
+  def _get_bool_param(self, key: str, default: bool = False) -> bool:
+    value = self.params.get(key, return_default=True)
+    if value is None:
+      return default
+    if isinstance(value, bool):
+      return value
+    if isinstance(value, bytes):
+      return value not in (b"", b"0")
+    if isinstance(value, str):
+      return value not in ("", "0", "false", "False")
+    return bool(value)
+
+  @staticmethod
+  def _clamp_manual_yield_torque_threshold(threshold: int) -> int:
+    clamped = max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(threshold, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+    rounded = ((clamped + (MANUAL_YIELD_TORQUE_THRESHOLD_STEP // 2)) // MANUAL_YIELD_TORQUE_THRESHOLD_STEP) * MANUAL_YIELD_TORQUE_THRESHOLD_STEP
+    return max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(rounded, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+
+  def _get_stock_manual_yield_torque_threshold(self) -> int:
+    return 75 if self.CP.flags & SubaruFlags.PREGLOBAL else MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT
+
+  def _get_active_manual_yield_torque_threshold(self) -> int:
+    if not self.mc_subaru_manual_yield_torque_threshold_enabled:
+      return self._get_stock_manual_yield_torque_threshold()
+
+    return self.mc_subaru_manual_yield_torque_threshold
+
+  def _update_params(self) -> None:
+    self.mc_subaru_manual_yield_torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
+    self.mc_subaru_manual_yield_torque_threshold = self._clamp_manual_yield_torque_threshold(
+      self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT)
+    )
+
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
+    self.frame += 1
+    if self.frame % MANUAL_YIELD_TORQUE_THRESHOLD_REFRESH_FRAMES == 0:
+      self._update_params()
+
     cp = can_parsers[Bus.pt]
     cp_cam = can_parsers[Bus.cam]
     cp_alt = can_parsers[Bus.alt]
@@ -92,8 +149,16 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     ret.steeringTorque = cp.vl["Steering_Torque"]["Steer_Torque_Sensor"]
     ret.steeringTorqueEps = cp.vl["Steering_Torque"]["Steer_Torque_Output"]
 
-    steer_threshold = 75 if self.CP.flags & SubaruFlags.PREGLOBAL else 80
+    steer_threshold = self._get_active_manual_yield_torque_threshold()
     ret.steeringPressed = self.update_steering_pressed(abs(ret.steeringTorque) > steer_threshold, 5)
+    self._log_transition(
+      "manual_yield_torque_threshold",
+      (self.mc_subaru_manual_yield_torque_threshold_enabled, steer_threshold, self.mc_subaru_manual_yield_torque_threshold),
+      f"manual yield torque threshold active={steer_threshold} "
+      f"customEnabled={self.mc_subaru_manual_yield_torque_threshold_enabled} "
+      f"stored={self.mc_subaru_manual_yield_torque_threshold} "
+      f"stock={self._get_stock_manual_yield_torque_threshold()}",
+    )
 
     cp_cruise = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp
     cp_es_brake = cp_alt if self.CP.flags & SubaruFlags.GLOBAL_GEN2 else cp_cam
@@ -163,11 +228,13 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
       self._log_transition("steer_fault_temporary", ret.steerFaultTemporary,
                            f"steerFaultTemporary={ret.steerFaultTemporary} angle={ret.steeringAngleDeg:.2f} "
                            f"rate={ret.steeringRateDeg:.2f} torque={ret.steeringTorque:.2f} "
+                           f"yieldThreshold={steer_threshold} "
                            f"torqueEps={ret.steeringTorqueEps:.2f} cruiseEnabled={ret.cruiseState.enabled} "
                            f"cruiseAvailable={ret.cruiseState.available}")
       self._log_transition("steer_fault_permanent", ret.steerFaultPermanent,
                            f"steerFaultPermanent={ret.steerFaultPermanent} angle={ret.steeringAngleDeg:.2f} "
                            f"rate={ret.steeringRateDeg:.2f} torque={ret.steeringTorque:.2f} "
+                           f"yieldThreshold={steer_threshold} "
                            f"torqueEps={ret.steeringTorqueEps:.2f} cruiseEnabled={ret.cruiseState.enabled} "
                            f"cruiseAvailable={ret.cruiseState.available}")
 

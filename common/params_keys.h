@@ -159,6 +159,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "2"}},
     {"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "2"}},
     {"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}},
     {"MCSubaruManualYieldResumeSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}},
     {"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},

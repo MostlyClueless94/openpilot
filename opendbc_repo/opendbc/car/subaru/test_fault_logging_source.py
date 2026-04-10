@@ -18,9 +18,18 @@ def test_carstate_fault_logs_include_steering_and_cruise_context():
   assert 'steerFaultPermanent={ret.steerFaultPermanent} angle={ret.steeringAngleDeg:.2f}' in source
   assert 'rate={ret.steeringRateDeg:.2f}' in source
   assert 'torque={ret.steeringTorque:.2f}' in source
+  assert 'yieldThreshold={steer_threshold}' in source
   assert 'torqueEps={ret.steeringTorqueEps:.2f}' in source
   assert 'cruiseEnabled={ret.cruiseState.enabled}' in source
   assert 'cruiseAvailable={ret.cruiseState.available}' in source
+
+
+def test_carstate_logs_active_manual_yield_torque_threshold():
+  source = _read(CARSTATE)
+  assert 'MCSubaruManualYieldTorqueThresholdEnabled' in source
+  assert 'MCSubaruManualYieldTorqueThreshold' in source
+  assert 'manual yield torque threshold active={steer_threshold}' in source
+  assert 'customEnabled={self.mc_subaru_manual_yield_torque_threshold_enabled}' in source
 
 
 def test_carcontroller_request_logs_include_target_and_handoff_context():
@@ -59,5 +68,7 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   ford_carstate_source = _read(FORD_CARSTATE)
   assert "MCSubaruManualYieldReleaseGuard" not in ford_controller_source
   assert "MCSubaruManualYieldReleaseGuard" not in ford_carstate_source
+  assert "MCSubaruManualYieldTorqueThreshold" not in ford_controller_source
+  assert "MCSubaruManualYieldTorqueThreshold" not in ford_carstate_source
   assert "angle_driver_override_release_guard" not in ford_controller_source
   assert "angle_driver_override_release_guard" not in ford_carstate_source

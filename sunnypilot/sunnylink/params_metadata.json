@@ -368,6 +368,34 @@
     "title": "Match Vehicle Speedometer",
     "description": "When enabled, the Subaru on-road speedometer matches the vehicle dash or cluster speed when supported. Turn it off to show true wheel-speed-based speed instead."
   },
+  "MCSubaruManualYieldTorqueThresholdEnabled": {
+    "title": "Custom Yield Torque",
+    "description": "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru threshold for your platform while keeping your saved test value."
+  },
+  "MCSubaruManualYieldTorqueThreshold": {
+    "title": "Manual Yield Torque Threshold",
+    "description": "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner. 80 matches the stock threshold on modern Subaru angle-LKAS platforms.",
+    "options": [
+      { "value": 10, "label": "10" },
+      { "value": 15, "label": "15" },
+      { "value": 20, "label": "20" },
+      { "value": 25, "label": "25" },
+      { "value": 30, "label": "30" },
+      { "value": 35, "label": "35" },
+      { "value": 40, "label": "40" },
+      { "value": 45, "label": "45" },
+      { "value": 50, "label": "50" },
+      { "value": 55, "label": "55" },
+      { "value": 60, "label": "60" },
+      { "value": 65, "label": "65" },
+      { "value": 70, "label": "70" },
+      { "value": 75, "label": "75" },
+      { "value": 80, "label": "80 - Stock" }
+    ],
+    "min": 10,
+    "max": 80,
+    "step": 5
+  },
   "MCSubaruManualYieldResumeSpeedEnabled": {
     "title": "Custom Resume Speed",
     "description": "Enable a custom manual-yield resume speed. When off, steering reclaim speed falls back to the current validated default while keeping your saved speed selection."

@@ -25,6 +25,8 @@ def test_mc_custom_hosts_subaru_controls_at_the_end_of_the_page():
   assert 'param="MCSubaruSmoothingTune"' in source
   assert 'param="MCSubaruSmoothingStrength"' in source
   assert 'param="MCSubaruCenterDampingStrength"' in source
+  assert 'param="MCSubaruManualYieldTorqueThresholdEnabled"' in source
+  assert 'param="MCSubaruManualYieldTorqueThreshold"' in source
   assert 'param="MCSubaruManualYieldResumeSpeedEnabled"' in source
   assert 'param="MCSubaruManualYieldResumeSpeed"' in source
   assert 'param="MCSubaruManualYieldResumeSoftnessEnabled"' in source
@@ -48,6 +50,8 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'self._subaru_advanced_tuning.set_visible(True)' in source
   assert 'self._subaru_smoothing_tune.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_resume_speed_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)' in source
@@ -65,10 +69,13 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'def _on_subaru_toggle_changed(self, _):' not in source
   assert 'self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)' in source
   assert 'self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)' in source
+  assert 'self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)' in source
   assert 'self._manual_yield_resume_speed_enabled.action_item.set_state(resume_speed_enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)' in source
+  assert 'self._manual_yield_torque_threshold.action_item.current_value = self._clamp_manual_yield_torque_threshold(' in source
   assert 'self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)' in source
+  assert 'self._manual_yield_torque_threshold.action_item.set_enabled(torque_threshold_enabled)' in source
   assert 'self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))' in source
   assert 'self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))' in source
   assert 'value = self._params.get(key, return_default=True)' in source
@@ -80,6 +87,8 @@ def test_params_keys_register_subaru_tuning_defaults_for_mc_custom_menu():
   assert '{"MCSubaruSmoothingTune", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
   assert '{"MCSubaruSmoothingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in source
   assert '{"MCSubaruCenterDampingStrength", {PERSISTENT | BACKUP, INT, "2"}}' in source
+  assert '{"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in source
   assert '{"MCSubaruManualYieldResumeSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
   assert '{"MCSubaruManualYieldResumeSpeed", {PERSISTENT | BACKUP, INT, "4"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
@@ -108,6 +117,12 @@ def test_params_metadata_describes_subaru_brand_menu_ranges_and_labels():
   assert '"label": "-4"' not in source
   assert '"MCSubaruCenterDampingStrength"' in source
   assert '"title": "Center Damping"' in source
+  assert '"MCSubaruManualYieldTorqueThresholdEnabled"' in source
+  assert '"title": "Custom Yield Torque"' in source
+  assert '"MCSubaruManualYieldTorqueThreshold"' in source
+  assert '"title": "Manual Yield Torque Threshold"' in source
+  assert '"label": "10"' in source
+  assert '"label": "80 - Stock"' in source
   assert '"MCSubaruManualYieldResumeSpeedEnabled"' in source
   assert '"title": "Custom Resume Speed"' in source
   assert 'falls back to the current validated default while keeping your saved speed selection' in source

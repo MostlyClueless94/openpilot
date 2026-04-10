@@ -24,6 +24,9 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
+MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 10
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
+MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 
 
 class SubaruLayoutMici(NavScroller):
@@ -48,6 +51,7 @@ class SubaruLayoutMici(NavScroller):
     )
     self._subaru_advanced_tuning_toggle = BigParamControl("advanced\ntuning", "MCSubaruAdvancedTuning")
     self._subaru_smoothing_toggle = BigParamControl("subaru steering\nsmoothing", "MCSubaruSmoothingTune")
+    self._manual_yield_torque_threshold_toggle = BigParamControl("custom yield\ntorque", "MCSubaruManualYieldTorqueThresholdEnabled")
     self._manual_yield_resume_speed_toggle = BigParamControl("custom resume\nspeed", "MCSubaruManualYieldResumeSpeedEnabled")
     self._manual_yield_resume_softness_toggle = BigParamControl("custom resume\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")
     self._manual_yield_release_guard_toggle = BigParamControl("manual yield\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")
@@ -69,6 +73,16 @@ class SubaruLayoutMici(NavScroller):
         "MCSubaruCenterDampingStrength",
         list(range(-3, 5)),
         self._format_strength_label,
+      )
+    )
+
+    self._manual_yield_torque_threshold_btn = BigButton("manual yield\ntorque")
+    self._manual_yield_torque_threshold_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._manual_yield_torque_threshold_btn,
+        "MCSubaruManualYieldTorqueThreshold",
+        list(range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP)),
+        self._format_manual_yield_torque_threshold_label,
       )
     )
 
@@ -112,6 +126,8 @@ class SubaruLayoutMici(NavScroller):
       self._subaru_smoothing_toggle,
       self._subaru_smoothing_strength_btn,
       self._subaru_center_damping_btn,
+      self._manual_yield_torque_threshold_toggle,
+      self._manual_yield_torque_threshold_btn,
       self._manual_yield_resume_speed_toggle,
       self._manual_yield_resume_speed_btn,
       self._manual_yield_resume_softness_toggle,
@@ -127,6 +143,7 @@ class SubaruLayoutMici(NavScroller):
       ("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speedometer_toggle, True),
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle, False),
       ("MCSubaruSmoothingTune", self._subaru_smoothing_toggle, True),
+      ("MCSubaruManualYieldTorqueThresholdEnabled", self._manual_yield_torque_threshold_toggle, False),
       ("MCSubaruManualYieldResumeSpeedEnabled", self._manual_yield_resume_speed_toggle, True),
       ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, True),
       ("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False),
@@ -169,10 +186,23 @@ class SubaruLayoutMici(NavScroller):
   def _format_release_guard_label(value: int) -> str:
     return RELEASE_GUARD_LEVEL_LABELS[max(0, min(value - 1, len(RELEASE_GUARD_LEVEL_LABELS) - 1))]
 
+  @staticmethod
+  def _clamp_manual_yield_torque_threshold(value: int) -> int:
+    clamped = max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(value, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+    rounded = ((clamped + (MANUAL_YIELD_TORQUE_THRESHOLD_STEP // 2)) // MANUAL_YIELD_TORQUE_THRESHOLD_STEP) * MANUAL_YIELD_TORQUE_THRESHOLD_STEP
+    return max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(rounded, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+
+  @staticmethod
+  def _format_manual_yield_torque_threshold_label(value: int) -> str:
+    clamped = SubaruLayoutMici._clamp_manual_yield_torque_threshold(value)
+    return "80 - Stock" if clamped == MANUAL_YIELD_TORQUE_THRESHOLD_MAX else str(clamped)
+
   def _set_advanced_tuning_visibility(self, enabled: bool) -> None:
     self._subaru_smoothing_toggle.set_visible(enabled)
     self._subaru_smoothing_strength_btn.set_visible(enabled)
     self._subaru_center_damping_btn.set_visible(enabled)
+    self._manual_yield_torque_threshold_toggle.set_visible(enabled)
+    self._manual_yield_torque_threshold_btn.set_visible(enabled)
     self._manual_yield_resume_speed_toggle.set_visible(enabled)
     self._manual_yield_resume_speed_btn.set_visible(enabled)
     self._manual_yield_resume_softness_toggle.set_visible(enabled)
@@ -230,17 +260,24 @@ class SubaruLayoutMici(NavScroller):
 
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
     smoothing_enabled = self._get_bool_param("MCSubaruSmoothingTune", True)
+    torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
     resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     self._set_advanced_tuning_visibility(advanced_tuning_enabled)
     self._subaru_smoothing_strength_btn.set_enabled(smoothing_enabled)
     self._subaru_center_damping_btn.set_enabled(smoothing_enabled)
+    self._manual_yield_torque_threshold_btn.set_enabled(torque_threshold_enabled)
     self._manual_yield_resume_speed_btn.set_enabled(resume_speed_enabled)
     self._manual_yield_resume_softness_btn.set_enabled(resume_softness_enabled)
     self._manual_yield_release_guard_btn.set_enabled(release_guard_enabled)
     self._subaru_smoothing_strength_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))))
     self._subaru_center_damping_btn.set_value(self._format_strength_label(max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 2), 4))))
+    self._manual_yield_torque_threshold_btn.set_value(
+      self._format_manual_yield_torque_threshold_label(
+        self._clamp_manual_yield_torque_threshold(self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+      )
+    )
     self._manual_yield_resume_speed_btn.set_value(
       self._format_resume_speed_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6)))
     )
