@@ -46,7 +46,6 @@ def test_carcontroller_logs_neutral_angle_driver_override_state():
   source = _read(CARCONTROLLER)
   assert 'angle driver override hold active={self.angle_driver_override_hold_frames > 0}' in source
   assert 'angle driver override ramp active={manual_override_ramp_active}' in source
-  assert 'MCSubaruManualYieldResumeSpeed' in source
   assert 'MCSubaruManualYieldResumeSoftness' in source
   assert 'MCSubaruManualYieldReleaseGuardEnabled' in source
   assert 'MCSubaruManualYieldReleaseGuardLevel' in source
@@ -63,6 +62,19 @@ def test_carcontroller_no_longer_reads_chatter_toggle_param():
   assert "mc_subaru_chatter_fix" not in source
 
 
+def test_carcontroller_no_longer_reads_retired_subaru_tuning_params():
+  source = _read(CARCONTROLLER)
+  assert "MCSubaruSmoothingTune" not in source
+  assert "MCSubaruSmoothingStrength" not in source
+  assert "MCSubaruCenterDampingStrength" not in source
+  assert "MCSubaruManualYieldResumeSpeed" not in source
+  assert "_get_resume_speed_frames" not in source
+  assert "angle_lkas_delta_deadzone" not in source
+  assert "angle_lkas_center_damping" not in source
+  assert "angle_lkas_center_sign_flip_clamp" not in source
+  assert "self.angle_driver_override_ramp_frames = ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES" in source
+
+
 def test_ford_files_remain_free_of_subaru_release_guard_references():
   ford_controller_source = _read(FORD_CARCONTROLLER)
   ford_carstate_source = _read(FORD_CARSTATE)
@@ -74,5 +86,7 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_carstate_source
   assert "MCSubaruSmoothingTune" not in ford_controller_source
   assert "MCSubaruSmoothingTune" not in ford_carstate_source
+  assert "MCSubaruManualYieldResumeSpeed" not in ford_controller_source
+  assert "MCSubaruManualYieldResumeSpeed" not in ford_carstate_source
   assert "angle_driver_override_release_guard" not in ford_controller_source
   assert "angle_driver_override_release_guard" not in ford_carstate_source

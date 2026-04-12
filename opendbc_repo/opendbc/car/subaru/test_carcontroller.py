@@ -8,23 +8,13 @@ from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.carcontroller import (
   ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES,
   ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT,
-  ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS,
   ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES,
   ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS,
   ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS,
   ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS,
   CarController,
-  LOW_SPEED_SMOOTH_MAX_SPEED,
   MADS_ONLY_MIN_SPEED,
-  LOW_SPEED_STRAIGHT_SIGN_RELEASE_FRAMES,
   SOFT_CAPTURE_LEVEL_PARAMS,
-  SUBARU_CENTER_DAMPING_ALPHA_SCALES,
-  SUBARU_CENTER_DAMPING_DEADBAND_SCALES,
-  SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES,
-  SUBARU_SMOOTHING_ALPHA_SCALES,
-  SUBARU_SMOOTHING_DEADBAND_SCALES,
-  SUBARU_TUNING_STRENGTH_MAX,
-  SUBARU_TUNING_STRENGTH_MIN,
 )
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
@@ -33,11 +23,6 @@ from opendbc.car.tests.routes import routes
 
 class TestSubaruCarController(unittest.TestCase):
   PARAM_KEYS = (
-    "MCSubaruSmoothingTune",
-    "MCSubaruSmoothingStrength",
-    "MCSubaruCenterDampingStrength",
-    "MCSubaruManualYieldResumeSpeedEnabled",
-    "MCSubaruManualYieldResumeSpeed",
     "MCSubaruManualYieldResumeSoftnessEnabled",
     "MCSubaruManualYieldResumeSoftness",
     "MCSubaruManualYieldReleaseGuardEnabled",
@@ -75,17 +60,13 @@ class TestSubaruCarController(unittest.TestCase):
     )
 
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
-                        resume_speed_enabled=True, resume_softness_enabled=True,
-                        resume_speed_setting=None, resume_softness_setting=None,
+                        resume_softness_enabled=True, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
-    self.params.put_bool("MCSubaruManualYieldResumeSpeedEnabled", resume_speed_enabled)
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
     self.params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", release_guard_enabled)
     self.params.put("MCSubaruManualYieldReleaseGuardLevel", str(release_guard_level))
-    if resume_speed_setting is not None:
-      self.params.put("MCSubaruManualYieldResumeSpeed", str(resume_speed_setting))
     if resume_softness_setting is not None:
       self.params.put("MCSubaruManualYieldResumeSoftness", str(resume_softness_setting))
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
@@ -93,8 +74,7 @@ class TestSubaruCarController(unittest.TestCase):
     return CarController({}, CP, CP_SP)
 
   @staticmethod
-  def _set_resume_profile(controller, speed_setting=4, softness_setting=4):
-    controller.mc_subaru_manual_yield_resume_speed = speed_setting
+  def _set_resume_profile(controller, softness_setting=4):
     controller.mc_subaru_manual_yield_resume_softness = softness_setting
 
   @staticmethod
@@ -107,9 +87,9 @@ class TestSubaruCarController(unittest.TestCase):
     )
 
   def _prime_angle_driver_override_ramp(self, controller, cc, v_ego_raw=8.0, measured_angle=10.0,
-                                        speed_setting=4, softness_setting=4, use_current_profile=False):
+                                        softness_setting=4, use_current_profile=False):
     if not use_current_profile:
-      self._set_resume_profile(controller, speed_setting, softness_setting)
+      self._set_resume_profile(controller, softness_setting)
     controller.apply_angle_last = measured_angle
 
     controller.handle_angle_lateral(cc, self._build_cs(v_ego_raw, measured_angle, steering_pressed=True))
@@ -117,20 +97,19 @@ class TestSubaruCarController(unittest.TestCase):
     for _ in range(ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES):
       controller.handle_angle_lateral(cc, released_cs)
 
-    expected_speed_setting = controller.mc_subaru_manual_yield_resume_speed
     expected_softness_setting = controller.mc_subaru_manual_yield_resume_softness
     self.assertEqual(controller.angle_driver_override_hold_frames, 0)
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[expected_speed_setting])
-    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[expected_speed_setting])
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_start_angle, measured_angle)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[expected_softness_setting])
     return released_cs
 
   def _prime_angle_driver_override_release_guard(self, controller, cc, *, v_ego_raw=8.0, measured_angle=10.0,
-                                                 steering_rate_deg=0.0, speed_setting=4, softness_setting=4,
+                                                 steering_rate_deg=0.0, softness_setting=4,
                                                  use_current_profile=False):
     if not use_current_profile:
-      self._set_resume_profile(controller, speed_setting, softness_setting)
+      self._set_resume_profile(controller, softness_setting)
     controller.apply_angle_last = measured_angle
 
     controller.handle_angle_lateral(cc, self._build_cs(v_ego_raw, measured_angle, steering_pressed=True))
@@ -214,61 +193,6 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[4])
 
-  def test_angle_driver_override_resume_speed_profiles_map_to_expected_frame_counts(self):
-    expected_frame_counts = {
-      0: 12,
-      1: 18,
-      2: 24,
-      3: 30,
-      4: 36,
-      5: 42,
-      6: 48,
-    }
-
-    for speed_setting, expected_frames in expected_frame_counts.items():
-      controller = self._build_controller()
-      cc = self._build_cc(True, True, 14.0)
-
-      self._prime_angle_driver_override_ramp(controller, cc, speed_setting=speed_setting)
-
-      self.assertEqual(controller.angle_driver_override_ramp_frames, expected_frames)
-      self.assertEqual(controller.angle_driver_override_ramp_total_frames, expected_frames)
-
-  def test_angle_driver_override_resume_speed_toggle_off_uses_default_frames_but_keeps_custom_softness(self):
-    controller = self._build_controller(
-      resume_speed_enabled=False,
-      resume_softness_enabled=True,
-      resume_speed_setting=1,
-      resume_softness_setting=6,
-    )
-    cc = self._build_cc(True, True, 14.0)
-
-    self.assertEqual(controller.mc_subaru_manual_yield_resume_speed, 4)
-    self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, 6)
-
-    self._prime_angle_driver_override_ramp(controller, cc, use_current_profile=True)
-
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
-    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
-    self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[6])
-
-  def test_angle_driver_override_resume_speed_reenable_restores_saved_custom_frames(self):
-    disabled = self._build_controller(
-      resume_speed_enabled=False,
-      resume_softness_enabled=True,
-      resume_speed_setting=1,
-      resume_softness_setting=4,
-    )
-    reenabled = self._build_controller(
-      resume_speed_enabled=True,
-      resume_softness_enabled=True,
-      resume_speed_setting=1,
-      resume_softness_setting=4,
-    )
-
-    self.assertEqual(disabled.mc_subaru_manual_yield_resume_speed, ANGLE_DRIVER_OVERRIDE_RAMP_SPEED_DEFAULT)
-    self.assertEqual(reenabled.mc_subaru_manual_yield_resume_speed, 1)
-
   def test_angle_driver_override_resume_softness_profiles_map_to_expected_exponents(self):
     expected_exponents = {
       0: 1.0,
@@ -288,22 +212,19 @@ class TestSubaruCarController(unittest.TestCase):
 
       self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, expected_exponent)
 
-  def test_angle_driver_override_resume_softness_toggle_off_uses_default_exponent_but_keeps_custom_speed(self):
+  def test_angle_driver_override_resume_softness_toggle_off_uses_default_exponent_and_default_frames(self):
     controller = self._build_controller(
-      resume_speed_enabled=True,
       resume_softness_enabled=False,
-      resume_speed_setting=1,
       resume_softness_setting=6,
     )
     cc = self._build_cc(True, True, 14.0)
 
-    self.assertEqual(controller.mc_subaru_manual_yield_resume_speed, 1)
     self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, 4)
 
     self._prime_angle_driver_override_ramp(controller, cc, use_current_profile=True)
 
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
-    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(
       controller.angle_driver_override_ramp_softness_exponent,
       ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT],
@@ -311,15 +232,11 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_angle_driver_override_resume_softness_reenable_restores_saved_custom_exponent(self):
     disabled = self._build_controller(
-      resume_speed_enabled=True,
       resume_softness_enabled=False,
-      resume_speed_setting=4,
       resume_softness_setting=6,
     )
     reenabled = self._build_controller(
-      resume_speed_enabled=True,
       resume_softness_enabled=True,
-      resume_speed_setting=4,
       resume_softness_setting=6,
     )
 
@@ -418,13 +335,11 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertTrue(enabled.angle_driver_override_release_guard_pending)
     self.assertAlmostEqual(released_cs.out.steeringAngleDeg, 10.0)
 
-  def test_angle_driver_override_release_guard_preserves_resume_speed_and_softness_profiles_after_confirmation(self):
+  def test_angle_driver_override_release_guard_preserves_fixed_resume_timing_and_custom_softness_after_confirmation(self):
     controller = self._build_controller(
       release_guard_enabled=True,
       release_guard_level=2,
-      resume_speed_enabled=True,
       resume_softness_enabled=True,
-      resume_speed_setting=1,
       resume_softness_setting=6,
     )
     cc = self._build_cc(True, True, 14.0)
@@ -433,8 +348,8 @@ class TestSubaruCarController(unittest.TestCase):
     for _ in range(ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[1]):
       controller.handle_angle_lateral(cc, released_cs)
 
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
-    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAME_OPTIONS[1])
+    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[6])
 
   def test_angle_driver_override_ramp_progresses_monotonically_toward_live_target_in_mads_only(self):
@@ -640,347 +555,12 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertNotEqual(msg, inhibited)
     self.assertGreater(controller.apply_angle_last, cs.out.steeringAngleDeg)
 
-  def test_low_speed_straight_stability_holds_alternating_small_requests_centered(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.2)
-
-    held_targets = [
-      controller._get_low_speed_stable_angle_target(target, cs)
-      for target in (1.6, -1.6, 1.6, -1.6)
-    ]
-
-    self.assertEqual(held_targets, [0.0, 0.0, 0.0, 0.0])
-
-  def test_low_speed_straight_stability_requires_persistence_before_leaving_center(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.2)
-
-    held_targets = [
-      controller._get_low_speed_stable_angle_target(1.8, cs)
-      for _ in range(LOW_SPEED_STRAIGHT_SIGN_RELEASE_FRAMES - 1)
-    ]
-    released_target = controller._get_low_speed_stable_angle_target(1.8, cs)
-
-    self.assertTrue(all(target == 0.0 for target in held_targets))
-    self.assertAlmostEqual(released_target, 1.8)
-
-  def test_low_speed_straight_stability_bypasses_real_turn_requests(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.5)
-
-    stabilized_target = controller._get_low_speed_stable_angle_target(12.0, cs)
-
-    self.assertAlmostEqual(stabilized_target, 12.0)
-
-  def test_low_speed_straight_stability_bypasses_driver_input(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.2, steering_pressed=True)
-
-    stabilized_target = controller._get_low_speed_stable_angle_target(1.6, cs)
-
-    self.assertAlmostEqual(stabilized_target, 1.6)
-
-  def test_low_speed_center_damping_zeroes_tiny_requests_inside_deadband(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.2)
-
-    damped_target, active, sign_flip_clamped = controller._get_low_speed_center_damped_angle_target(0.4, cs)
-
-    self.assertTrue(active)
-    self.assertFalse(sign_flip_clamped)
-    self.assertAlmostEqual(damped_target, 0.0)
-
-  def test_low_speed_center_damping_clamps_near_center_sign_flips(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    cs = self._build_cs(3.0, 0.2)
-
-    damped_target, active, sign_flip_clamped = controller._get_low_speed_center_damped_angle_target(-1.6, cs)
-
-    self.assertTrue(active)
-    self.assertTrue(sign_flip_clamped)
-    self.assertGreater(damped_target, 0.0)
-
-  def test_low_speed_center_damping_preserves_persistent_small_progress(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.2)
-
-    damped_targets = []
-    for _ in range(4):
-      damped_target, active, sign_flip_clamped = controller._get_low_speed_center_damped_angle_target(1.8, cs)
-      self.assertTrue(active)
-      self.assertFalse(sign_flip_clamped)
-      damped_targets.append(damped_target)
-      controller.apply_angle_last = damped_target
-
-    self.assertTrue(all(left < right for left, right in zip(damped_targets, damped_targets[1:], strict=True)))
-    self.assertGreater(damped_targets[-1], 1.0)
-
-  def test_low_speed_center_damping_bypasses_real_turn_requests(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.5)
-
-    damped_target, active, sign_flip_clamped = controller._get_low_speed_center_damped_angle_target(5.0, cs)
-
-    self.assertFalse(active)
-    self.assertFalse(sign_flip_clamped)
-    self.assertAlmostEqual(damped_target, 5.0)
-
-  def test_low_speed_center_damping_bypasses_high_speed_behavior(self):
-    controller = self._build_controller()
-    cs = self._build_cs(LOW_SPEED_SMOOTH_MAX_SPEED, 0.2)
-
-    damped_target, active, sign_flip_clamped = controller._get_low_speed_center_damped_angle_target(1.6, cs)
-
-    self.assertFalse(active)
-    self.assertFalse(sign_flip_clamped)
-    self.assertAlmostEqual(damped_target, 1.6)
-
-  def test_low_speed_center_damping_bypasses_driver_input(self):
-    controller = self._build_controller()
-    cs = self._build_cs(3.0, 0.2, steering_pressed=True)
-
-    damped_target, active, sign_flip_clamped = controller._get_low_speed_center_damped_angle_target(1.6, cs)
-
-    self.assertFalse(active)
-    self.assertFalse(sign_flip_clamped)
-    self.assertAlmostEqual(damped_target, 1.6)
-
-  def test_low_speed_smoothing_tune_toggle_off_is_noop(self):
-    baseline = self._build_controller()
-    tuned = self._build_controller()
-    baseline.apply_angle_last = 0.5
-    tuned.apply_angle_last = 0.5
-    tuned.mc_subaru_smoothing_tune = False
-    tuned.mc_subaru_smoothing_strength = 3
-
-    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
-    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
-
-    self.assertAlmostEqual(tuned_target, baseline_target)
-
-  def test_low_speed_smoothing_tune_zero_strength_matches_baseline(self):
-    baseline = self._build_controller()
-    tuned = self._build_controller()
-    baseline.apply_angle_last = 0.5
-    tuned.apply_angle_last = 0.5
-    tuned.mc_subaru_smoothing_tune = True
-    tuned.mc_subaru_smoothing_strength = 0
-
-    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
-    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
-
-    self.assertAlmostEqual(tuned_target, baseline_target)
-
-  def test_subaru_strength_scale_preserves_legacy_anchor_values(self):
+  def test_retired_low_speed_tuning_stack_keeps_raw_angle_target(self):
     controller = self._build_controller()
 
-    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_SMOOTHING_DEADBAND_SCALES), 0.70)
-    self.assertAlmostEqual(controller._get_strength_scale(0, SUBARU_SMOOTHING_DEADBAND_SCALES), 1.00)
-    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_SMOOTHING_DEADBAND_SCALES), 1.35)
-    self.assertAlmostEqual(controller._get_strength_scale(4, SUBARU_SMOOTHING_DEADBAND_SCALES), 1.466)
-    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_SMOOTHING_ALPHA_SCALES), 1.20)
-    self.assertAlmostEqual(controller._get_strength_scale(0, SUBARU_SMOOTHING_ALPHA_SCALES), 1.00)
-    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_SMOOTHING_ALPHA_SCALES), 0.80)
-    self.assertAlmostEqual(controller._get_strength_scale(4, SUBARU_SMOOTHING_ALPHA_SCALES), 0.734)
-    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_CENTER_DAMPING_DEADBAND_SCALES), 0.70)
-    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_CENTER_DAMPING_DEADBAND_SCALES), 1.45)
-    self.assertAlmostEqual(controller._get_strength_scale(4, SUBARU_CENTER_DAMPING_DEADBAND_SCALES), 1.60)
-    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES), 1.30)
-    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES), 0.70)
-    self.assertAlmostEqual(controller._get_strength_scale(4, SUBARU_CENTER_DAMPING_SIGN_FLIP_SCALES), 0.60)
-    self.assertAlmostEqual(controller._get_strength_scale(-3, SUBARU_CENTER_DAMPING_ALPHA_SCALES), 1.20)
-    self.assertAlmostEqual(controller._get_strength_scale(3, SUBARU_CENTER_DAMPING_ALPHA_SCALES), 0.75)
-    self.assertAlmostEqual(controller._get_strength_scale(4, SUBARU_CENTER_DAMPING_ALPHA_SCALES), 0.666)
-
-  def test_low_speed_smoothing_strength_positive_adds_more_smoothing(self):
-    baseline = self._build_controller()
-    tuned = self._build_controller()
-    baseline.apply_angle_last = 0.0
-    tuned.apply_angle_last = 0.0
-    tuned.mc_subaru_smoothing_tune = True
-    tuned.mc_subaru_smoothing_strength = 3
-
-    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
-    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
-
-    self.assertLess(tuned_target, baseline_target)
-
-  def test_low_speed_smoothing_strength_plus_four_adds_more_smoothing_than_plus_three(self):
-    plus_three = self._build_controller()
-    plus_four = self._build_controller()
-    plus_three.apply_angle_last = 0.0
-    plus_four.apply_angle_last = 0.0
-    plus_three.mc_subaru_smoothing_tune = True
-    plus_four.mc_subaru_smoothing_tune = True
-    plus_three.mc_subaru_smoothing_strength = 3
-    plus_four.mc_subaru_smoothing_strength = 4
-
-    plus_three_target = plus_three._get_low_speed_smoothed_angle_target(1.8, 0.5)
-    plus_four_target = plus_four._get_low_speed_smoothed_angle_target(1.8, 0.5)
-
-    self.assertLess(plus_four_target, plus_three_target)
-
-  def test_low_speed_smoothing_strength_negative_is_more_responsive(self):
-    baseline = self._build_controller()
-    tuned = self._build_controller()
-    baseline.apply_angle_last = 0.0
-    tuned.apply_angle_last = 0.0
-    tuned.mc_subaru_smoothing_tune = True
-    tuned.mc_subaru_smoothing_strength = -3
-
-    baseline_target = baseline._get_low_speed_smoothed_angle_target(1.8, 0.5)
-    tuned_target = tuned._get_low_speed_smoothed_angle_target(1.8, 0.5)
-
-    self.assertGreater(tuned_target, baseline_target)
-
-  def test_subaru_smoothing_range_constants_match_observed_effective_limits(self):
-    self.assertEqual(SUBARU_TUNING_STRENGTH_MIN, -3)
-    self.assertEqual(SUBARU_TUNING_STRENGTH_MAX, 4)
-
-  def test_center_damping_strength_positive_adds_more_damping(self):
-    baseline = self._build_controller()
-    tuned = self._build_controller()
-    baseline.apply_angle_last = 0.5
-    tuned.apply_angle_last = 0.5
-    tuned.mc_subaru_smoothing_tune = True
-    tuned.mc_subaru_center_damping_strength = 3
-    cs = self._build_cs(0.5, 0.2)
-
-    baseline_target, _, _ = baseline._get_low_speed_center_damped_angle_target(1.8, cs)
-    tuned_target, _, _ = tuned._get_low_speed_center_damped_angle_target(1.8, cs)
-
-    self.assertLess(tuned_target, baseline_target)
-
-  def test_center_damping_plus_four_adds_more_damping_than_plus_three(self):
-    plus_three = self._build_controller()
-    plus_four = self._build_controller()
-    plus_three.apply_angle_last = 0.5
-    plus_four.apply_angle_last = 0.5
-    plus_three.mc_subaru_smoothing_tune = True
-    plus_four.mc_subaru_smoothing_tune = True
-    plus_three.mc_subaru_center_damping_strength = 3
-    plus_four.mc_subaru_center_damping_strength = 4
-    cs = self._build_cs(0.5, 0.2)
-
-    plus_three_target, _, _ = plus_three._get_low_speed_center_damped_angle_target(1.8, cs)
-    plus_four_target, _, _ = plus_four._get_low_speed_center_damped_angle_target(1.8, cs)
-
-    self.assertLess(plus_four_target, plus_three_target)
-
-  def test_center_damping_strength_negative_is_more_responsive(self):
-    baseline = self._build_controller()
-    tuned = self._build_controller()
-    baseline.apply_angle_last = 0.5
-    tuned.apply_angle_last = 0.5
-    tuned.mc_subaru_smoothing_tune = True
-    tuned.mc_subaru_center_damping_strength = -3
-    cs = self._build_cs(0.5, 0.2)
-
-    baseline_target, _, _ = baseline._get_low_speed_center_damped_angle_target(1.8, cs)
-    tuned_target, _, _ = tuned._get_low_speed_center_damped_angle_target(1.8, cs)
-
-    self.assertGreater(tuned_target, baseline_target)
-
-  def test_center_damping_range_constants_match_observed_effective_limits(self):
-    self.assertEqual(SUBARU_TUNING_STRENGTH_MIN, -3)
-    self.assertEqual(SUBARU_TUNING_STRENGTH_MAX, 4)
-
-  def test_smoothing_alpha_is_clamped_for_minimum_strength(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.0
-    controller.mc_subaru_smoothing_tune = True
-    controller.mc_subaru_smoothing_strength = -3
-
-    smoothed_target = controller._get_low_speed_smoothed_angle_target(20.0, 0.0)
-
-    self.assertAlmostEqual(smoothed_target, 3.0)
-
-  def test_center_damping_alpha_is_clamped_for_minimum_strength(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    controller.mc_subaru_smoothing_tune = True
-    controller.mc_subaru_center_damping_strength = -3
-    cs = self._build_cs(0.0, 0.2)
-
-    damped_target, active, _ = controller._get_low_speed_center_damped_angle_target(3.0, cs)
-
-    self.assertTrue(active)
-    self.assertAlmostEqual(damped_target, 0.875)
-
-  def test_low_speed_delta_deadzone_active_by_default_in_valid_window(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    cs = self._build_cs(3.0, 0.2)
-
-    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
-
-    self.assertTrue(active)
-    self.assertGreater(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 0.5)
-
-  def test_low_speed_delta_deadzone_is_noop_above_speed_window(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    cs = self._build_cs(LOW_SPEED_SMOOTH_MAX_SPEED, 0.2)
-
-    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
-
-    self.assertFalse(active)
-    self.assertEqual(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 1.2)
-
-  def test_low_speed_delta_deadzone_is_noop_when_lkas_not_requested(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    cs = self._build_cs(3.0, 0.2)
-
-    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, False)
-
-    self.assertFalse(active)
-    self.assertEqual(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 1.2)
-
-  def test_low_speed_delta_deadzone_is_noop_for_real_turns(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    cs = self._build_cs(3.0, 12.0)
-
-    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(5.0, cs, True)
-
-    self.assertFalse(active)
-    self.assertEqual(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 5.0)
-
-  def test_low_speed_delta_deadzone_is_noop_for_driver_input(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    cs = self._build_cs(3.0, 0.2, steering_pressed=True)
-
-    filtered_target, active, deadzone = controller._get_low_speed_delta_deadzone_target(1.2, cs, True)
-
-    self.assertFalse(active)
-    self.assertEqual(deadzone, 0.0)
-    self.assertAlmostEqual(filtered_target, 1.2)
-
-  def test_low_speed_smoothing_toggle_off_bypasses_entire_low_speed_stack(self):
-    controller = self._build_controller()
-    controller.apply_angle_last = 0.5
-    controller.mc_subaru_smoothing_tune = False
-    controller.mc_subaru_smoothing_strength = 4
-    controller.mc_subaru_center_damping_strength = 4
-    cs = self._build_cs(3.0, 0.2)
-
-    target, delta_deadzone_active, delta_deadzone, center_damping_active, sign_flip_clamped = \
-      controller._get_angle_lkas_target(1.2, cs, True)
+    target = controller._get_angle_lkas_target(1.2)
 
     self.assertAlmostEqual(target, 1.2)
-    self.assertFalse(delta_deadzone_active)
-    self.assertEqual(delta_deadzone, 0.0)
-    self.assertFalse(center_damping_active)
-    self.assertFalse(sign_flip_clamped)
-    self.assertEqual(controller.low_speed_straight_pending_direction, 0)
-    self.assertEqual(controller.low_speed_straight_pending_frames, 0)
 
   def test_outback_2023_angle_steering_route_still_present(self):
     route = next(route for route in routes if route.platform == CAR.SUBARU_OUTBACK_2023)

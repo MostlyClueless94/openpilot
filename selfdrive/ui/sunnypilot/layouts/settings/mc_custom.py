@@ -13,31 +13,11 @@ from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 
-RESUME_SPEED_LABELS = ["Fastest", "Faster", "Fast", "Medium", "Slow", "Slower", "Slowest"]
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 ADVANCED_TUNING_DESC = "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
-SMOOTHING_TUNE_DESC = (
-  "Enable Subaru low-speed steering tuning. When enabled, you can adjust smoothing and near-center damping below."
-)
-SMOOTHING_STRENGTH_DESC = (
-  "Adjust low-speed Subaru smoothing. Positive values add more smoothing, "
-  + "negative values make it more responsive, and Stock keeps the current validated Subaru behavior."
-)
-CENTER_DAMPING_DESC = (
-  "Adjust Subaru near-center damping and sign-flip control at low speed. "
-  + "Positive values add more damping, negative values make it more responsive, "
-  + "and Stock keeps the current validated Subaru behavior."
-)
-RESUME_SPEED_DESC = (
-  "Adjust how quickly steering re-engages after you release the wheel during a confirmed manual override."
-)
 RESUME_SOFTNESS_DESC = (
   "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."
-)
-CUSTOM_RESUME_SPEED_DESC = (
-  "Enable a custom manual-yield resume speed. When off, steering reclaim speed falls back to the current validated default "
-  + "while keeping your saved speed selection."
 )
 CUSTOM_RESUME_SOFTNESS_DESC = (
   "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default "
@@ -153,32 +133,6 @@ class MCCustomLayout(Widget):
       param="MCSubaruAdvancedTuning",
       initial_state=self._get_bool_param("MCSubaruAdvancedTuning"),
     )
-    self._subaru_smoothing_tune = toggle_item_sp(
-      title=lambda: tr("Subaru Steering Smoothing"),
-      description=lambda: tr(SMOOTHING_TUNE_DESC),
-      param="MCSubaruSmoothingTune",
-      initial_state=self._get_bool_param("MCSubaruSmoothingTune", True),
-    )
-    self._subaru_smoothing_strength = option_item_sp(
-      title=lambda: tr("Smoothing Strength"),
-      description=lambda: tr(SMOOTHING_STRENGTH_DESC),
-      param="MCSubaruSmoothingStrength",
-      min_value=-3,
-      max_value=4,
-      value_change_step=1,
-      label_callback=self._format_subaru_strength_label,
-      inline=False,
-    )
-    self._subaru_center_damping = option_item_sp(
-      title=lambda: tr("Center Damping"),
-      description=lambda: tr(CENTER_DAMPING_DESC),
-      param="MCSubaruCenterDampingStrength",
-      min_value=-3,
-      max_value=4,
-      value_change_step=1,
-      label_callback=self._format_subaru_strength_label,
-      inline=False,
-    )
     self._manual_yield_torque_threshold_enabled = toggle_item_sp(
       title=lambda: tr("Custom Yield Torque"),
       description=lambda: tr(CUSTOM_YIELD_TORQUE_DESC),
@@ -193,22 +147,6 @@ class MCCustomLayout(Widget):
       max_value=MANUAL_YIELD_TORQUE_THRESHOLD_MAX,
       value_change_step=MANUAL_YIELD_TORQUE_THRESHOLD_STEP,
       label_callback=self._format_manual_yield_torque_threshold_label,
-      inline=False,
-    )
-    self._manual_yield_resume_speed_enabled = toggle_item_sp(
-      title=lambda: tr("Custom Resume Speed"),
-      description=lambda: tr(CUSTOM_RESUME_SPEED_DESC),
-      param="MCSubaruManualYieldResumeSpeedEnabled",
-      initial_state=self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True),
-    )
-    self._manual_yield_resume_speed = option_item_sp(
-      title=lambda: tr("Manual Yield Resume Speed"),
-      description=lambda: tr(RESUME_SPEED_DESC),
-      param="MCSubaruManualYieldResumeSpeed",
-      min_value=0,
-      max_value=6,
-      value_change_step=1,
-      label_callback=self._format_resume_speed_label,
       inline=False,
     )
     self._manual_yield_resume_softness_enabled = toggle_item_sp(
@@ -269,13 +207,8 @@ class MCCustomLayout(Widget):
       self._subaru_header,
       self._subaru_match_vehicle_speedometer,
       self._subaru_advanced_tuning,
-      self._subaru_smoothing_tune,
-      self._subaru_smoothing_strength,
-      self._subaru_center_damping,
       self._manual_yield_torque_threshold_enabled,
       self._manual_yield_torque_threshold,
-      self._manual_yield_resume_speed_enabled,
-      self._manual_yield_resume_speed,
       self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
       self._manual_yield_release_guard_enabled,
@@ -283,14 +216,6 @@ class MCCustomLayout(Widget):
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
     ]
-
-  @staticmethod
-  def _format_subaru_strength_label(value: int) -> str:
-    return tr("Stock") if value == 0 else f"{value:+d}"
-
-  @staticmethod
-  def _format_resume_speed_label(value: int) -> str:
-    return tr(RESUME_SPEED_LABELS[max(0, min(value, len(RESUME_SPEED_LABELS) - 1))])
 
   @staticmethod
   def _format_resume_softness_label(value: int) -> str:
@@ -320,13 +245,8 @@ class MCCustomLayout(Widget):
     self._subaru_header.set_visible(True)
     self._subaru_match_vehicle_speedometer.set_visible(True)
     self._subaru_advanced_tuning.set_visible(True)
-    self._subaru_smoothing_tune.set_visible(advanced_tuning_enabled)
-    self._subaru_smoothing_strength.set_visible(advanced_tuning_enabled)
-    self._subaru_center_damping.set_visible(advanced_tuning_enabled)
     self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)
-    self._manual_yield_resume_speed_enabled.set_visible(advanced_tuning_enabled)
-    self._manual_yield_resume_speed.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)
@@ -336,35 +256,25 @@ class MCCustomLayout(Widget):
 
   def _update_subaru_settings(self) -> None:
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
-    smoothing_enabled = self._get_bool_param("MCSubaruSmoothingTune", True)
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
-    resume_speed_enabled = self._get_bool_param("MCSubaruManualYieldResumeSpeedEnabled", True)
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     self._subaru_match_vehicle_speedometer.action_item.set_state(
       self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True)
     )
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
-    self._subaru_smoothing_tune.action_item.set_state(smoothing_enabled)
     self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)
-    self._manual_yield_resume_speed_enabled.action_item.set_state(resume_speed_enabled)
     self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
     self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)
-    self._subaru_smoothing_strength.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruSmoothingStrength", 2), 4))
-    self._subaru_center_damping.action_item.current_value = max(-3, min(self._get_int_param("MCSubaruCenterDampingStrength", 2), 4))
     self._manual_yield_torque_threshold.action_item.current_value = self._clamp_manual_yield_torque_threshold(
       self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_MAX)
     )
-    self._manual_yield_resume_speed.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSpeed", 4), 6))
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
     self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
     self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
-    self._subaru_smoothing_strength.action_item.set_enabled(smoothing_enabled)
-    self._subaru_center_damping.action_item.set_enabled(smoothing_enabled)
     self._manual_yield_torque_threshold.action_item.set_enabled(torque_threshold_enabled)
-    self._manual_yield_resume_speed.action_item.set_enabled(resume_speed_enabled)
     self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)
     self._manual_yield_release_guard_level.action_item.set_enabled(release_guard_enabled)
     self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)
