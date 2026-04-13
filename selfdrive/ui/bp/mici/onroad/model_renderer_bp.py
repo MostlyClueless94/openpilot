@@ -2,7 +2,7 @@ import numpy as np
 import pyray as rl
 
 from openpilot.selfdrive.ui.mici.onroad.model_renderer import ModelRenderer
-from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import STOCK_LAT_ONLY_COLOR, get_dynamic_edge_color
+from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import STOCK_LAT_ONLY_COLOR, STOCK_LONG_ONLY_COLOR, get_dynamic_edge_color
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.shader_polygon import draw_polygon
 
@@ -10,7 +10,7 @@ from openpilot.system.ui.lib.shader_polygon import draw_polygon
 LANE_LINE_COLORS_BP = {
   UIStatus.DISENGAGED: rl.Color(0, 0, 0, 255),
   UIStatus.LAT_ONLY: STOCK_LAT_ONLY_COLOR,
-  UIStatus.LONG_ONLY: rl.Color(0, 255, 80, 255),
+  UIStatus.LONG_ONLY: STOCK_LONG_ONLY_COLOR,
   UIStatus.ENGAGED: rl.Color(0, 255, 80, 255),
   UIStatus.OVERRIDE: rl.Color(145, 155, 149, 255),
 }

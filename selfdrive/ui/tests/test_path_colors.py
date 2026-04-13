@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   BLUEPILOT_GRAY_BASE_COLOR,
   BLUEPILOT_GRAY_PATH_COLORS,
@@ -8,6 +10,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   DEFAULT_GREEN_PATH_COLORS,
   PATH_GRADIENT_STOPS,
   STOCK_LAT_ONLY_COLOR,
+  STOCK_LONG_ONLY_COLOR,
   STOCK_DYNAMIC_BORDER_COLORS,
   STOCK_DYNAMIC_EDGE_COLORS,
   get_default_path_edge_color,
@@ -16,6 +19,11 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import (
   vibrant_edge_color_from_gradient,
 )
 from openpilot.selfdrive.ui.ui_state import UIStatus
+
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+BP_TICI_MODEL_RENDERER = REPO_ROOT / "selfdrive/ui/bp/onroad/model_renderer_bp.py"
+BP_MICI_MODEL_RENDERER = REPO_ROOT / "selfdrive/ui/bp/mici/onroad/model_renderer_bp.py"
 
 
 def _color_tuple(color):
@@ -103,6 +111,19 @@ def test_dynamic_gray_states_are_significantly_lighter():
 
 def test_stock_lat_only_color_matches_expected_mads_teal():
   assert _color_tuple(STOCK_LAT_ONLY_COLOR) == (0, 200, 200, 255)
+
+
+def test_bp_model_renderers_use_stock_long_only_lane_color():
+  assert _color_tuple(STOCK_LONG_ONLY_COLOR) == (150, 28, 168, 255)
+
+  for path in (BP_TICI_MODEL_RENDERER, BP_MICI_MODEL_RENDERER):
+    source = path.read_text(encoding="utf-8")
+    assert "STOCK_LONG_ONLY_COLOR" in source
+    assert "UIStatus.LONG_ONLY: STOCK_LONG_ONLY_COLOR" in source
+    assert "def _draw_enhanced_lane_lines" in source
+
+  tici_source = BP_TICI_MODEL_RENDERER.read_text(encoding="utf-8")
+  assert "confidence" in tici_source
 
 
 def test_custom_model_green_preset_remains_separate_from_default_green_path():

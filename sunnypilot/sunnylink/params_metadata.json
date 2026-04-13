@@ -284,39 +284,47 @@
   },
   "MCSubaruManualYieldTorqueThresholdEnabled": {
     "title": "Custom Yield Torque",
-    "description": "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru threshold for your platform while keeping your saved test value."
+    "description": "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru threshold for your platform while keeping your saved test value. Settings near the minimum may falsely detect manual override while openpilot is steering through turns. Values above 80 require more driver torque and may be slower to detect manual override. 40 is the minimum allowed test value."
   },
   "MCSubaruManualYieldTorqueThreshold": {
     "title": "Manual Yield Torque Threshold",
-    "description": "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner. 80 matches the stock threshold on modern Subaru angle-LKAS platforms.",
+    "description": "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner, but settings near the minimum may falsely detect manual override while openpilot is steering through turns. 80 matches the stock threshold on modern Subaru angle-LKAS platforms. Values above 80 require more driver torque and may be slower to detect manual override. 40 is the minimum allowed test value.",
     "options": [
-      { "value": 10, "label": "10" },
-      { "value": 15, "label": "15" },
-      { "value": 20, "label": "20" },
-      { "value": 25, "label": "25" },
-      { "value": 30, "label": "30" },
-      { "value": 35, "label": "35" },
-      { "value": 40, "label": "40" },
-      { "value": 45, "label": "45" },
-      { "value": 50, "label": "50" },
-      { "value": 55, "label": "55" },
+      { "value": 40, "label": "40 - Caution" },
+      { "value": 45, "label": "45 - Caution" },
+      { "value": 50, "label": "50 - Caution" },
+      { "value": 55, "label": "55 - Caution" },
       { "value": 60, "label": "60" },
       { "value": 65, "label": "65" },
       { "value": 70, "label": "70" },
       { "value": 75, "label": "75" },
-      { "value": 80, "label": "80 - Stock" }
+      { "value": 80, "label": "80 - Stock" },
+      { "value": 85, "label": "85" },
+      { "value": 90, "label": "90" },
+      { "value": 95, "label": "95" },
+      { "value": 100, "label": "100" },
+      { "value": 105, "label": "105" },
+      { "value": 110, "label": "110" },
+      { "value": 115, "label": "115" },
+      { "value": 120, "label": "120" },
+      { "value": 125, "label": "125" },
+      { "value": 130, "label": "130" },
+      { "value": 135, "label": "135" },
+      { "value": 140, "label": "140" },
+      { "value": 145, "label": "145" },
+      { "value": 150, "label": "150" }
     ],
-    "min": 10,
-    "max": 80,
+    "min": 40,
+    "max": 150,
     "step": 5
   },
   "MCSubaruManualYieldResumeSoftnessEnabled": {
     "title": "Custom Resume Softness",
-    "description": "Enable custom manual-yield resume softness. When off, steering reclaim softness falls back to the current validated default while keeping your saved softness selection."
+    "description": "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied and your saved softness selection is kept for later testing."
   },
   "MCSubaruManualYieldResumeSoftness": {
     "title": "Manual Yield Resume Softness",
-    "description": "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite.",
+    "description": "Adjust how gently the optional steering reclaim ramp re-engages after manual override. Higher levels reduce the initial reclaim bite.",
     "options": [
       { "value": 0, "label": "Standard" },
       { "value": 1, "label": "Soft" },
@@ -348,7 +356,7 @@
   },
   "MCSubaruSoftCaptureEnabled": {
     "title": "Soft-Capture Engage Blend",
-    "description": "Smooth the transition when openpilot takes back steering control. When enabled, the wheel angle blends gradually toward the model target instead of snapping instantly. Experiment — MostlyClueless only."
+    "description": "Smooth the transition when openpilot takes back steering control. When enabled, the wheel angle blends gradually toward the model target instead of snapping instantly. Experiment - MostlyClueless only."
   },
   "MCSubaruSoftCaptureLevel": {
     "title": "Soft-Capture Strength",

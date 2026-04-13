@@ -23,8 +23,9 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
-MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 10
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
+SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
+MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 
 
@@ -52,6 +53,7 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_torque_threshold_toggle = BigParamControl("custom yield\ntorque", "MCSubaruManualYieldTorqueThresholdEnabled")
     self._manual_yield_resume_softness_toggle = BigParamControl("custom resume\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")
     self._manual_yield_release_guard_toggle = BigParamControl("manual yield\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")
+    self._subaru_soft_capture_toggle = BigParamControl("soft-capture\nengage blend", "MCSubaruSoftCaptureEnabled")
 
     self._manual_yield_torque_threshold_btn = BigButton("manual yield\ntorque")
     self._manual_yield_torque_threshold_btn.set_click_callback(
@@ -82,6 +84,15 @@ class SubaruLayoutMici(NavScroller):
         self._format_release_guard_label,
       )
     )
+    self._subaru_soft_capture_strength_btn = BigButton("soft-capture\nstrength")
+    self._subaru_soft_capture_strength_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._subaru_soft_capture_strength_btn,
+        "MCSubaruSoftCaptureLevel",
+        list(range(1, 6)),
+        self._format_soft_capture_label,
+      )
+    )
 
     self.main_items = [
       self._stop_and_go_header,
@@ -96,6 +107,8 @@ class SubaruLayoutMici(NavScroller):
       self._manual_yield_resume_softness_btn,
       self._manual_yield_release_guard_toggle,
       self._manual_yield_release_guard_btn,
+      self._subaru_soft_capture_toggle,
+      self._subaru_soft_capture_strength_btn,
     ]
     self._scroller.add_widgets(self.main_items)
 
@@ -105,8 +118,9 @@ class SubaruLayoutMici(NavScroller):
       ("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speedometer_toggle, True),
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle, False),
       ("MCSubaruManualYieldTorqueThresholdEnabled", self._manual_yield_torque_threshold_toggle, False),
-      ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, True),
+      ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, False),
       ("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False),
+      ("MCSubaruSoftCaptureEnabled", self._subaru_soft_capture_toggle, False),
     )
 
   @staticmethod
@@ -147,7 +161,15 @@ class SubaruLayoutMici(NavScroller):
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
     clamped = SubaruLayoutMici._clamp_manual_yield_torque_threshold(value)
-    return "80 - Stock" if clamped == MANUAL_YIELD_TORQUE_THRESHOLD_MAX else str(clamped)
+    if clamped <= 55:
+      return f"{clamped} - Caution"
+    if clamped == 80:
+      return "80 - Stock"
+    return str(clamped)
+
+  @staticmethod
+  def _format_soft_capture_label(value: int) -> str:
+    return SOFT_CAPTURE_STRENGTH_LABELS[max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))]
 
   def _set_advanced_tuning_visibility(self, enabled: bool) -> None:
     self._manual_yield_torque_threshold_toggle.set_visible(enabled)
@@ -156,6 +178,8 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_resume_softness_btn.set_visible(enabled)
     self._manual_yield_release_guard_toggle.set_visible(enabled)
     self._manual_yield_release_guard_btn.set_visible(enabled)
+    self._subaru_soft_capture_toggle.set_visible(enabled)
+    self._subaru_soft_capture_strength_btn.set_visible(enabled)
 
   def _show_selection_view(self, items, back_callback: Callable):
     self._scroller._items = items
@@ -207,15 +231,17 @@ class SubaruLayoutMici(NavScroller):
 
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
-    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled", True)
+    resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled")
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
+    soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._set_advanced_tuning_visibility(advanced_tuning_enabled)
     self._manual_yield_torque_threshold_btn.set_enabled(torque_threshold_enabled)
     self._manual_yield_resume_softness_btn.set_enabled(resume_softness_enabled)
     self._manual_yield_release_guard_btn.set_enabled(release_guard_enabled)
+    self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)
     self._manual_yield_torque_threshold_btn.set_value(
       self._format_manual_yield_torque_threshold_label(
-        self._clamp_manual_yield_torque_threshold(self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+        self._clamp_manual_yield_torque_threshold(self._get_int_param("MCSubaruManualYieldTorqueThreshold", 80))
       )
     )
     self._manual_yield_resume_softness_btn.set_value(
@@ -223,6 +249,9 @@ class SubaruLayoutMici(NavScroller):
     )
     self._manual_yield_release_guard_btn.set_value(
       self._format_release_guard_label(max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3)))
+    )
+    self._subaru_soft_capture_strength_btn.set_value(
+      self._format_soft_capture_label(max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5)))
     )
 
   def show_event(self):

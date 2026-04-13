@@ -13,8 +13,8 @@ from opendbc.sunnypilot.car.subaru.mads import MadsCarState
 from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarState
 
 
-MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 10
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 80
+MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT = 80
 MANUAL_YIELD_TORQUE_THRESHOLD_REFRESH_FRAMES = 100
@@ -150,7 +150,7 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     ret.steeringTorqueEps = cp.vl["Steering_Torque"]["Steer_Torque_Output"]
 
     steer_threshold = self._get_active_manual_yield_torque_threshold()
-    ret.steeringPressed = self.update_steering_pressed(abs(ret.steeringTorque) > steer_threshold, 5)
+    ret.steeringPressed = abs(ret.steeringTorque) > steer_threshold
     self._log_transition(
       "manual_yield_torque_threshold",
       (self.mc_subaru_manual_yield_torque_threshold_enabled, steer_threshold, self.mc_subaru_manual_yield_torque_threshold),

@@ -94,7 +94,7 @@ def test_params_keys_register_simplified_subaru_tuning_defaults_for_mc_custom_me
   assert '{"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
   assert '{"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in source
-  assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
+  assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in source
   assert '{"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in source
@@ -117,11 +117,12 @@ def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
   assert '"title": "Custom Yield Torque"' in source
   assert '"MCSubaruManualYieldTorqueThreshold"' in source
   assert '"title": "Manual Yield Torque Threshold"' in source
-  assert '"label": "10"' in source
+  assert '"label": "40 - Caution"' in source
   assert '"label": "80 - Stock"' in source
+  assert '"label": "150"' in source
   assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in source
   assert '"title": "Custom Resume Softness"' in source
-  assert 'falls back to the current validated default while keeping your saved softness selection' in source
+  assert 'no SubiPilot reclaim ramp is applied and your saved softness selection is kept' in source
   assert '"MCSubaruManualYieldResumeSoftness"' in source
   assert '"title": "Manual Yield Resume Softness"' in source
   assert '"label": "Standard"' in source

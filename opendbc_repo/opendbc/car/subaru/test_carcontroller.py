@@ -1,3 +1,4 @@
+import inspect
 import unittest
 from types import SimpleNamespace
 
@@ -16,6 +17,12 @@ from opendbc.car.subaru.carcontroller import (
   MADS_ONLY_MIN_SPEED,
   SOFT_CAPTURE_LEVEL_PARAMS,
 )
+from opendbc.car.subaru.carstate import (
+  CarState,
+  MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT,
+  MANUAL_YIELD_TORQUE_THRESHOLD_MAX,
+  MANUAL_YIELD_TORQUE_THRESHOLD_MIN,
+)
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
 from opendbc.car.tests.routes import routes
@@ -27,6 +34,8 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldResumeSoftness",
     "MCSubaruManualYieldReleaseGuardEnabled",
     "MCSubaruManualYieldReleaseGuardLevel",
+    "MCSubaruManualYieldTorqueThresholdEnabled",
+    "MCSubaruManualYieldTorqueThreshold",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
   )
@@ -60,7 +69,7 @@ class TestSubaruCarController(unittest.TestCase):
     )
 
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
-                        resume_softness_enabled=True, resume_softness_setting=None,
+                        resume_softness_enabled=False, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
@@ -72,6 +81,13 @@ class TestSubaruCarController(unittest.TestCase):
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
     CP_SP = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_OUTBACK_2023)
     return CarController({}, CP, CP_SP)
+
+  def _build_carstate(self, *, torque_threshold_enabled=False, torque_threshold=80):
+    self.params.put_bool("MCSubaruManualYieldTorqueThresholdEnabled", torque_threshold_enabled)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", str(torque_threshold))
+    CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
+    CP_SP = CarInterface.get_non_essential_params_sp(CP, CAR.SUBARU_OUTBACK_2023)
+    return CarState(CP, CP_SP)
 
   @staticmethod
   def _set_resume_profile(controller, softness_setting=4):
@@ -89,6 +105,7 @@ class TestSubaruCarController(unittest.TestCase):
   def _prime_angle_driver_override_ramp(self, controller, cc, v_ego_raw=8.0, measured_angle=10.0,
                                         softness_setting=4, use_current_profile=False):
     if not use_current_profile:
+      controller.mc_subaru_manual_yield_resume_softness_enabled = True
       self._set_resume_profile(controller, softness_setting)
     controller.apply_angle_last = measured_angle
 
@@ -109,6 +126,7 @@ class TestSubaruCarController(unittest.TestCase):
                                                  steering_rate_deg=0.0, softness_setting=4,
                                                  use_current_profile=False):
     if not use_current_profile:
+      controller.mc_subaru_manual_yield_resume_softness_enabled = True
       self._set_resume_profile(controller, softness_setting)
     controller.apply_angle_last = measured_angle
 
@@ -122,7 +140,7 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
     return released_cs
 
-  def test_angle_driver_override_still_wins_in_mads_only(self):
+  def test_angle_driver_override_is_stock_raw_target_in_mads_only_when_handoff_off(self):
     controller = self._build_controller()
     expected_controller = self._build_controller()
     cs = self._build_cs(9.5, 20.56, steering_pressed=True)
@@ -131,12 +149,14 @@ class TestSubaruCarController(unittest.TestCase):
     controller.apply_angle_last = cs.out.steeringAngleDeg
 
     msg = controller.handle_angle_lateral(cc, cs)
-    expected = subarucan.create_steering_control_angle(expected_controller.packer, cs.out.steeringAngleDeg, False)
+    inhibited = subarucan.create_steering_control_angle(expected_controller.packer, cs.out.steeringAngleDeg, False)
 
-    self.assertEqual(msg, expected)
-    self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+    self.assertNotEqual(msg, inhibited)
+    self.assertGreater(controller.apply_angle_last, cc.actuators.steeringAngleDeg - 1.0)
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
 
-  def test_angle_driver_override_still_wins_in_full_engaged(self):
+  def test_angle_driver_override_is_stock_raw_target_in_full_engaged_when_handoff_off(self):
     controller = self._build_controller()
     expected_controller = self._build_controller()
     cs = self._build_cs(9.5, 20.56, steering_pressed=True)
@@ -145,12 +165,14 @@ class TestSubaruCarController(unittest.TestCase):
     controller.apply_angle_last = cs.out.steeringAngleDeg
 
     msg = controller.handle_angle_lateral(cc, cs)
-    expected = subarucan.create_steering_control_angle(expected_controller.packer, cs.out.steeringAngleDeg, False)
+    inhibited = subarucan.create_steering_control_angle(expected_controller.packer, cs.out.steeringAngleDeg, False)
 
-    self.assertEqual(msg, expected)
-    self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+    self.assertNotEqual(msg, inhibited)
+    self.assertGreater(controller.apply_angle_last, cc.actuators.steeringAngleDeg - 1.0)
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
 
-  def test_angle_driver_override_hold_persists_after_steering_pressed_clears_in_mads_only(self):
+  def test_angle_driver_override_hold_does_not_persist_in_mads_only_when_handoff_off(self):
     controller = self._build_controller()
     cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True)
     cc = self._build_cc(True, False, 14.0)
@@ -160,14 +182,14 @@ class TestSubaruCarController(unittest.TestCase):
 
     cs_released = self._build_cs(8.0, 10.0, steering_pressed=False)
     msg = controller.handle_angle_lateral(cc, cs_released)
-    expected = subarucan.create_steering_control_angle(controller.packer, cs_released.out.steeringAngleDeg, False)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs_released.out.steeringAngleDeg, False)
 
-    self.assertEqual(msg, expected)
-    self.assertEqual(controller.angle_driver_override_hold_frames, ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES - 1)
+    self.assertNotEqual(msg, inhibited)
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
     self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
-    self.assertAlmostEqual(controller.apply_angle_last, cs_released.out.steeringAngleDeg)
+    self.assertGreater(controller.apply_angle_last, cs_released.out.steeringAngleDeg)
 
-  def test_angle_driver_override_hold_persists_after_steering_pressed_clears_in_full_engaged(self):
+  def test_angle_driver_override_hold_does_not_persist_in_full_engaged_when_handoff_off(self):
     controller = self._build_controller()
     cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True)
     cc = self._build_cc(True, True, 14.0)
@@ -177,21 +199,25 @@ class TestSubaruCarController(unittest.TestCase):
 
     cs_released = self._build_cs(8.0, 10.0, steering_pressed=False)
     msg = controller.handle_angle_lateral(cc, cs_released)
-    expected = subarucan.create_steering_control_angle(controller.packer, cs_released.out.steeringAngleDeg, False)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs_released.out.steeringAngleDeg, False)
 
-    self.assertEqual(msg, expected)
-    self.assertEqual(controller.angle_driver_override_hold_frames, ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES - 1)
+    self.assertNotEqual(msg, inhibited)
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
     self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
-    self.assertAlmostEqual(controller.apply_angle_last, cs_released.out.steeringAngleDeg)
+    self.assertGreater(controller.apply_angle_last, cs_released.out.steeringAngleDeg)
 
-  def test_angle_driver_override_default_resume_profile_uses_the_new_staged_defaults(self):
+  def test_angle_driver_override_default_profile_leaves_custom_handoff_off(self):
     controller = self._build_controller()
     cc = self._build_cc(True, True, 14.0)
+    cs = self._build_cs(8.0, 10.0, steering_pressed=True)
 
-    self._prime_angle_driver_override_ramp(controller, cc)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+    controller.handle_angle_lateral(cc, cs)
 
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
-    self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[4])
+    self.assertFalse(controller._manual_yield_handoff_enabled())
+    self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT)
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
 
   def test_angle_driver_override_resume_softness_profiles_map_to_expected_exponents(self):
     expected_exponents = {
@@ -212,7 +238,7 @@ class TestSubaruCarController(unittest.TestCase):
 
       self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, expected_exponent)
 
-  def test_angle_driver_override_resume_softness_toggle_off_uses_default_exponent_and_default_frames(self):
+  def test_angle_driver_override_resume_softness_toggle_off_disables_reclaim_ramp(self):
     controller = self._build_controller(
       resume_softness_enabled=False,
       resume_softness_setting=6,
@@ -221,14 +247,17 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, 4)
 
-    self._prime_angle_driver_override_ramp(controller, cc, use_current_profile=True)
+    cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True)
+    controller.apply_angle_last = cs_pressed.out.steeringAngleDeg
+    controller.handle_angle_lateral(cc, cs_pressed)
 
-    self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
-    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
-    self.assertAlmostEqual(
-      controller.angle_driver_override_ramp_softness_exponent,
-      ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT],
-    )
+    cs_released = self._build_cs(8.0, 10.0, steering_pressed=False)
+    controller.handle_angle_lateral(cc, cs_released)
+
+    self.assertEqual(controller.angle_driver_override_hold_frames, 0)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
+    self.assertGreater(controller.apply_angle_last, cs_released.out.steeringAngleDeg)
+    self.assertLessEqual(controller.apply_angle_last, cc.actuators.steeringAngleDeg)
 
   def test_angle_driver_override_resume_softness_reenable_restores_saved_custom_exponent(self):
     disabled = self._build_controller(
@@ -279,6 +308,25 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_start_angle, released_cs.out.steeringAngleDeg)
+
+  def test_angle_driver_override_release_guard_without_resume_softness_does_not_start_ramp(self):
+    controller = self._build_controller(
+      release_guard_enabled=True,
+      release_guard_level=2,
+      resume_softness_enabled=False,
+      resume_softness_setting=6,
+    )
+    cc = self._build_cc(True, True, 14.0)
+    released_cs = self._prime_angle_driver_override_release_guard(controller, cc, use_current_profile=True)
+
+    self.assertEqual(controller.mc_subaru_manual_yield_resume_softness, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT)
+
+    for _ in range(ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[1]):
+      controller.handle_angle_lateral(cc, released_cs)
+
+    self.assertFalse(controller.angle_driver_override_release_guard_pending)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
+    self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
 
   def test_angle_driver_override_release_guard_cancels_when_driver_input_returns(self):
     controller = self._build_controller(release_guard_enabled=True, release_guard_level=2)
@@ -561,6 +609,25 @@ class TestSubaruCarController(unittest.TestCase):
     target = controller._get_angle_lkas_target(1.2)
 
     self.assertAlmostEqual(target, 1.2)
+
+  def test_manual_yield_torque_threshold_only_changes_when_enabled(self):
+    disabled = self._build_carstate(torque_threshold_enabled=False, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MAX)
+    below_floor = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MIN - 25)
+    at_floor = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
+    above_stock = self._build_carstate(torque_threshold_enabled=True, torque_threshold=120)
+    above_ceiling = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50)
+
+    self.assertEqual(disabled._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT)
+    self.assertEqual(below_floor._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
+    self.assertEqual(at_floor._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
+    self.assertEqual(above_stock._get_active_manual_yield_torque_threshold(), 120)
+    self.assertEqual(above_ceiling._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_MAX)
+
+  def test_manual_yield_torque_threshold_uses_direct_detection_without_debounce(self):
+    source = inspect.getsource(CarState.update)
+
+    self.assertIn("ret.steeringPressed = abs(ret.steeringTorque) > steer_threshold", source)
+    self.assertNotIn("update_steering_pressed", source)
 
   def test_outback_2023_angle_steering_route_still_present(self):
     route = next(route for route in routes if route.platform == CAR.SUBARU_OUTBACK_2023)

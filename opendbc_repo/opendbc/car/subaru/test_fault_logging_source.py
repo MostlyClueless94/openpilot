@@ -84,6 +84,8 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   assert "MCSubaruManualYieldTorqueThreshold" not in ford_carstate_source
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_controller_source
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_carstate_source
+  assert "MCSubaruSoftCapture" not in ford_controller_source
+  assert "MCSubaruSoftCapture" not in ford_carstate_source
   assert "MCSubaruSmoothingTune" not in ford_controller_source
   assert "MCSubaruSmoothingTune" not in ford_carstate_source
   assert "MCSubaruManualYieldResumeSpeed" not in ford_controller_source
