@@ -7,12 +7,41 @@ from enum import Enum, IntFlag
 
 from opendbc.car import Bus, CarSpecs, DbcDict, PlatformConfig, Platforms, uds
 from opendbc.car.lateral import AngleSteeringLimits
-from opendbc.car.structs import CarParams
+from opendbc.car.structs import CarParams, CarState
 from opendbc.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column, \
                                                      Device
 from opendbc.car.fw_query_definitions import FwQueryConfig, LiveFwVersions, OfflineFwVersions, Request, StdQueries, p16
 
 Ecu = CarParams.Ecu
+GearShifter = CarState.GearShifter
+
+FORD_MANUMATIC_GEAR_NAMES = {
+  "_1", "_2", "_3", "_4", "_5", "_6",
+  "RANGE1_M1_L1", "RANGE2_M2_L2", "RANGE3_M3_L3", "RANGE4", "RANGE5", "RANGE6",
+  "FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH",
+}
+
+FORD_FORWARD_GEAR_MAP = {
+  "PARK": GearShifter.park,
+  "REVERSE": GearShifter.reverse,
+  "NEUTRAL": GearShifter.neutral,
+  "DRIVE": GearShifter.drive,
+  "LOW": GearShifter.low,
+  "SPORT": GearShifter.sport,
+  "SPORT_DRIVESPORT": GearShifter.sport,
+  "SPORT_DRIVESPORT_MPOSITION": GearShifter.sport,
+}
+
+
+def parse_ford_gear_shifter(gear: str | None) -> CarState.GearShifter:
+  if gear is None:
+    return GearShifter.unknown
+
+  gear_normalized = gear.strip().upper()
+  if gear_normalized in FORD_MANUMATIC_GEAR_NAMES:
+    return GearShifter.manumatic
+
+  return FORD_FORWARD_GEAR_MAP.get(gear_normalized, GearShifter.unknown)
 
 
 class CarControllerParams:

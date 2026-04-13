@@ -1,15 +1,17 @@
 import random
 from collections.abc import Iterable
+from pathlib import Path
 
 from hypothesis import settings, given, strategies as st
 from parameterized import parameterized
 
-from opendbc.car.structs import CarParams
+from opendbc.car.structs import CarParams, CarState
 from opendbc.car.fw_versions import build_fw_dict
-from opendbc.car.ford.values import CAR, FW_QUERY_CONFIG, FW_PATTERN, get_platform_codes
+from opendbc.car.ford.values import CAR, FW_QUERY_CONFIG, FW_PATTERN, get_platform_codes, parse_ford_gear_shifter
 from opendbc.car.ford.fingerprints import FW_VERSIONS
 
 Ecu = CarParams.Ecu
+GearShifter = CarState.GearShifter
 
 
 ECU_ADDRESSES = {
@@ -38,6 +40,46 @@ ECU_PART_NUMBER = {
     b"14H102",  # Ford Q4
   ],
 }
+
+
+class TestFordGearParsing:
+  @parameterized.expand([
+    ("Park", GearShifter.park),
+    ("Reverse", GearShifter.reverse),
+    ("Neutral", GearShifter.neutral),
+    ("Drive", GearShifter.drive),
+    ("Sport_DriveSport", GearShifter.sport),
+    ("Sport_DriveSport_Mposition", GearShifter.sport),
+    ("Low", GearShifter.low),
+    ("_1", GearShifter.manumatic),
+    ("_6", GearShifter.manumatic),
+    ("Range1_M1_L1", GearShifter.manumatic),
+    ("Range2_M2_L2", GearShifter.manumatic),
+    ("Range3_M3_L3", GearShifter.manumatic),
+    ("Range4", GearShifter.manumatic),
+    ("Range6", GearShifter.manumatic),
+    ("first", GearShifter.manumatic),
+    ("sixth", GearShifter.manumatic),
+    ("Fault", GearShifter.unknown),
+    ("UnknownPosition", GearShifter.unknown),
+    ("Unknown_Position", GearShifter.unknown),
+    ("Undefined_1", GearShifter.unknown),
+    ("Undefined_Treat_as_Fault", GearShifter.unknown),
+    (None, GearShifter.unknown),
+  ])
+  def test_parse_ford_gear_shifter(self, gear, expected):
+    assert parse_ford_gear_shifter(gear) == expected
+
+  def test_ford_forward_manual_gears_are_drivable(self):
+    interface_src = Path(__file__).parents[1].joinpath("interface.py").read_text()
+    assert "GearShifter.sport" in interface_src
+    assert "GearShifter.low" in interface_src
+    assert "GearShifter.manumatic" in interface_src
+
+  def test_ford_gear_change_stays_ford_only(self):
+    shared_interfaces_src = Path(__file__).parents[2].joinpath("interfaces.py").read_text()
+    assert "SPORT_DRIVESPORT" not in shared_interfaces_src
+    assert "RANGE1_M1_L1" not in shared_interfaces_src
 
 
 class TestFordFW:

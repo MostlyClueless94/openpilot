@@ -3,7 +3,7 @@ from opendbc.car import Bus, create_button_events, structs
 from opendbc.car.common.conversions import Conversions as CV
 from openpilot.common.params import Params
 from opendbc.car.ford.fordcan import CanBus
-from opendbc.car.ford.values import DBC, CarControllerParams, FordFlags
+from opendbc.car.ford.values import DBC, CarControllerParams, FordFlags, parse_ford_gear_shifter
 from opendbc.car.interfaces import CarStateBase
 from cereal import messaging
 # from bluepilot.logger.bp_logger import debug, info, warning, error, critical
@@ -133,7 +133,7 @@ class CarState(CarStateBase, MadsCarState, CarStateExt):
       else:
         gear = self.shifter_values.get(cp.vl["PowertrainData_10"]["TrnRng_D_Rq"])
 
-      ret.gearShifter = self.parse_gear_shifter(gear)
+      ret.gearShifter = parse_ford_gear_shifter(gear)
     elif self.CP.transmissionType == TransmissionType.manual:
       if bool(cp.vl["BCM_Lamp_Stat_FD1"]["RvrseLghtOn_B_Stat"]):
         ret.gearShifter = GearShifter.reverse
