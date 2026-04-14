@@ -81,6 +81,8 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert '"Release Guard Strength"' in source
   assert '"Tighter MADS Turns"' in source
   assert '"MADS Steering Angle Cap"' in source
+  assert 'requested steering angle' in source
+  assert 'measured-angle guard' in source
 
 
 def test_ford_brand_page_does_not_gain_subaru_controls():
@@ -226,6 +228,8 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"MCSubaruManualYieldReleaseGuardLevel"' in metadata_source
   assert '"MCSubaruMadsTighterTurnsEnabled"' in metadata_source
   assert '"MCSubaruMadsMaxSteeringAngle"' in metadata_source
+  assert 'requested steering angle' in metadata_source
+  assert 'measured-angle guard' in metadata_source
   assert '"MCSubaruSoftCaptureEnabled"' in metadata_source
   assert '"MCSubaruSoftCaptureLevel"' in metadata_source
   assert '"label": "40 - Caution"' in metadata_source

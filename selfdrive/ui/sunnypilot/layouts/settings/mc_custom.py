@@ -32,12 +32,13 @@ RELEASE_GUARD_STRENGTH_DESC = (
   + "Higher levels wait longer for a clean release before the existing resume ramp starts."
 )
 MADS_TIGHTER_TURNS_DESC = (
-  "Allow larger Subaru MADS lateral-only steering angles before angle-LKAS is inhibited. "
-  + "This only relaxes the MADS parking-lot turn guard; it does not bypass panda safety or normal driving limits."
+  "Cap Subaru MADS lateral-only requested steering angle so tight-turn testing cannot request more than the selected value. "
+  + "The cap also remains a measured-angle guard; it does not bypass panda safety or normal driving limits."
 )
 MADS_STEERING_ANGLE_CAP_DESC = (
-  "Choose the Subaru MADS lateral-only steering angle cap. 120 deg is stock/current behavior, "
-  + "and 545 deg is the existing angle-LKAS safety maximum, not unlimited."
+  "Choose the Subaru MADS lateral-only requested steering angle cap. 120 deg is stock/current behavior. "
+  + "Higher values allow more MADS-only turning while still capping requested angle and inhibiting LKAS "
+  + "when the measured wheel angle reaches the cap. 545 deg is the existing angle-LKAS safety maximum, not unlimited."
 )
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "

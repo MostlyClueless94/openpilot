@@ -131,6 +131,15 @@ class CarController(CarControllerBase, SnGCarController):
       MADS_ONLY_MAX_STEER_ANGLE_MAX,
     ))
 
+  @staticmethod
+  def _apply_mads_only_steer_target_cap(steer_target: float, mads_only: bool, lkas_request: bool,
+                                        max_steer_angle: float) -> tuple[float, bool]:
+    if not (mads_only and lkas_request):
+      return steer_target, False
+
+    capped_target = float(np.clip(steer_target, -max_steer_angle, max_steer_angle))
+    return capped_target, not np.isclose(capped_target, steer_target)
+
   def _get_soft_capture_level(self) -> int:
     if not self.mc_subaru_soft_capture_enabled:
       return 0
@@ -296,7 +305,7 @@ class CarController(CarControllerBase, SnGCarController):
 
   def handle_angle_lateral(self, CC, CS):
     # Angle-LKAS can hard fault during very low-speed MADS lateral-only maneuvers.
-    # Keep MADS behavior above 1 mph, but block sharp parking-lot style steering in lateral-only mode.
+    # Keep MADS behavior above 1 mph, but cap both measured angle and requested target in lateral-only mode.
     mads_only = CC.latActive and not CC.enabled
     mads_only_max_steer_angle = self._get_mads_only_max_steer_angle()
     mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < mads_only_max_steer_angle
@@ -343,7 +352,8 @@ class CarController(CarControllerBase, SnGCarController):
       ),
     )
 
-    steer_target = self._get_angle_lkas_target(CC.actuators.steeringAngleDeg)
+    raw_steer_target = self._get_angle_lkas_target(CC.actuators.steeringAngleDeg)
+    steer_target = raw_steer_target
 
     if ramp_will_start:
       self._start_angle_driver_override_ramp(CS.out.steeringAngleDeg)
@@ -354,17 +364,6 @@ class CarController(CarControllerBase, SnGCarController):
       manual_override_ramp_active = False
 
     handoff_active = angle_driver_override or ramp_will_start or manual_override_ramp_active
-    self._log_transition(
-      "angle_lkas_request",
-      lkas_request,
-      (
-        f"angle LKAS request={lkas_request} inhibit={inhibit_reason} target={steer_target:.2f} "
-        + f"lastApplied={self.apply_angle_last:.2f} measuredAngle={CS.out.steeringAngleDeg:.2f} "
-        + f"madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f} "
-        + f"measuredRate={CS.out.steeringRateDeg:.2f} handoffActive={handoff_active} "
-        + f"rampActive={manual_override_ramp_active} latActive={CC.latActive} enabled={CC.enabled}"
-      ),
-    )
 
     self._log_transition(
       "angle_driver_override_ramp",
@@ -385,6 +384,14 @@ class CarController(CarControllerBase, SnGCarController):
     if lkas_request:
       steer_target = self._get_soft_capture_angle(steer_target, CS.out.steeringAngleDeg)
 
+    mads_target_before_cap = steer_target
+    steer_target, mads_target_clamped = self._apply_mads_only_steer_target_cap(
+      steer_target,
+      mads_only,
+      lkas_request,
+      mads_only_max_steer_angle,
+    )
+
     apply_steer = apply_std_steer_angle_limits(
       steer_target,
       self.apply_angle_last,
@@ -394,8 +401,42 @@ class CarController(CarControllerBase, SnGCarController):
       self.p.ANGLE_LIMITS,
     )
 
+    apply_steer_before_mads_cap = apply_steer
+    apply_steer, mads_apply_clamped = self._apply_mads_only_steer_target_cap(
+      apply_steer,
+      mads_only,
+      lkas_request,
+      mads_only_max_steer_angle,
+    )
+
     if not lkas_request:
       apply_steer = CS.out.steeringAngleDeg
+
+    mads_cap_clamped = mads_target_clamped or mads_apply_clamped
+    self._log_transition(
+      "mads_only_target_cap",
+      mads_cap_clamped,
+      (
+        f"mads target cap clamped={mads_cap_clamped} rawTarget={raw_steer_target:.2f} "
+        + f"targetBeforeCap={mads_target_before_cap:.2f} cappedTarget={steer_target:.2f} "
+        + f"applyBeforeCap={apply_steer_before_mads_cap:.2f} apply={apply_steer:.2f} "
+        + f"cap={mads_only_max_steer_angle:.2f} measuredAngle={CS.out.steeringAngleDeg:.2f} "
+        + f"speed={CS.out.vEgoRaw:.2f} madsOnly={mads_only}"
+      ),
+    )
+    self._log_transition(
+      "angle_lkas_request",
+      lkas_request,
+      (
+        f"angle LKAS request={lkas_request} inhibit={inhibit_reason} rawTarget={raw_steer_target:.2f} "
+        + f"target={steer_target:.2f} apply={apply_steer:.2f} lastApplied={self.apply_angle_last:.2f} "
+        + f"measuredAngle={CS.out.steeringAngleDeg:.2f} speed={CS.out.vEgoRaw:.2f} "
+        + f"madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f} "
+        + f"madsCapClamped={mads_cap_clamped} measuredRate={CS.out.steeringRateDeg:.2f} "
+        + f"handoffActive={handoff_active} rampActive={manual_override_ramp_active} "
+        + f"latActive={CC.latActive} enabled={CC.enabled}"
+      ),
+    )
 
     self.apply_angle_last = apply_steer
     return subarucan.create_steering_control_angle(self.packer, apply_steer, lkas_request)

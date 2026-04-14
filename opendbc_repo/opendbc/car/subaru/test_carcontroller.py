@@ -653,6 +653,86 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertNotEqual(msg, inhibited)
     self.assertGreater(controller.apply_angle_last, cs.out.steeringAngleDeg)
 
+  def test_mads_only_tighter_turns_clamps_requested_target_to_selected_cap(self):
+    for angle_cap, requested_angle in ((190, 286.0), (199, 226.0)):
+      controller = self._build_controller(
+        mads_tighter_turns_enabled=True,
+        mads_max_steering_angle=angle_cap,
+      )
+      cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, angle_cap - 10.0)
+      cc = self._build_cc(True, False, requested_angle)
+      controller.apply_angle_last = float(angle_cap)
+
+      controller.handle_angle_lateral(cc, cs)
+
+      self.assertLessEqual(abs(controller.apply_angle_last), float(angle_cap))
+      self.assertAlmostEqual(controller.apply_angle_last, float(angle_cap))
+
+  def test_mads_only_tighter_turns_clamps_observed_low_speed_fault_shape(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=199,
+    )
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 176.2)
+    cc = self._build_cc(True, False, 226.2)
+    controller.apply_angle_last = 199.0
+
+    controller.handle_angle_lateral(cc, cs)
+
+    self.assertLessEqual(abs(controller.apply_angle_last), 199.0)
+    self.assertAlmostEqual(controller.apply_angle_last, 199.0)
+
+  def test_mads_only_tighter_turns_toggle_off_clamps_requested_target_to_stock_cap(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=False,
+      mads_max_steering_angle=int(MADS_ONLY_MAX_STEER_ANGLE_MAX),
+    )
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, MADS_ONLY_MAX_STEER_ANGLE - 10.0)
+    cc = self._build_cc(True, False, 286.0)
+    controller.apply_angle_last = MADS_ONLY_MAX_STEER_ANGLE
+
+    controller.handle_angle_lateral(cc, cs)
+
+    self.assertLessEqual(abs(controller.apply_angle_last), MADS_ONLY_MAX_STEER_ANGLE)
+    self.assertAlmostEqual(controller.apply_angle_last, MADS_ONLY_MAX_STEER_ANGLE)
+
+  def test_mads_only_tighter_turns_clamps_manual_yield_ramp_output_to_cap(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=190,
+      resume_softness_enabled=True,
+      resume_softness_setting=0,
+    )
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 180.0)
+    cc = self._build_cc(True, False, 300.0)
+    controller.apply_angle_last = 190.0
+    controller.angle_driver_override_ramp_frames = 1
+    controller.angle_driver_override_ramp_total_frames = 1
+    controller.angle_driver_override_ramp_start_angle = 180.0
+    controller.angle_driver_override_ramp_softness_exponent = 1.0
+
+    controller.handle_angle_lateral(cc, cs)
+
+    self.assertLessEqual(abs(controller.apply_angle_last), 190.0)
+    self.assertAlmostEqual(controller.apply_angle_last, 190.0)
+
+  def test_mads_only_tighter_turns_clamps_soft_capture_output_to_cap(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=190,
+      soft_capture_enabled=True,
+      soft_capture_level=1,
+    )
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 180.0)
+    cc = self._build_cc(True, False, 300.0)
+    controller.apply_angle_last = 190.0
+
+    controller.handle_angle_lateral(cc, cs)
+
+    self.assertEqual(controller.soft_capture_frame, 0)
+    self.assertLessEqual(abs(controller.apply_angle_last), 190.0)
+    self.assertAlmostEqual(controller.apply_angle_last, 190.0)
+
   def test_mads_only_tighter_turns_does_not_override_standstill_or_gear_gates(self):
     controller = self._build_controller(
       mads_tighter_turns_enabled=True,
@@ -675,18 +755,18 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_mads_only_tighter_turns_does_not_affect_full_engaged_lateral(self):
     controller = self._build_controller(
-      mads_tighter_turns_enabled=False,
-      mads_max_steering_angle=120,
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=190,
     )
-    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 150.0)
-    cc = self._build_cc(True, True, 154.0)
-    controller.apply_angle_last = cs.out.steeringAngleDeg
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 176.0)
+    cc = self._build_cc(True, True, 286.0)
+    controller.apply_angle_last = 240.0
 
     msg = controller.handle_angle_lateral(cc, cs)
     inhibited = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
 
     self.assertNotEqual(msg, inhibited)
-    self.assertGreater(controller.apply_angle_last, cs.out.steeringAngleDeg)
+    self.assertGreater(controller.apply_angle_last, 190.0)
 
   def test_mads_only_tighter_turns_does_not_touch_torque_lkas_path(self):
     source = inspect.getsource(CarController.handle_torque_lateral)

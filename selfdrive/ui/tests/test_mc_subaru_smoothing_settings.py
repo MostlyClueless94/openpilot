@@ -149,6 +149,8 @@ def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
   assert '"title": "Tighter MADS Turns"' in source
   assert '"MCSubaruMadsMaxSteeringAngle"' in source
   assert '"title": "MADS Steering Angle Cap"' in source
+  assert 'requested steering angle' in source
+  assert 'measured-angle guard' in source
   assert '"label": "120 - Stock"' in source
   assert '"label": "190"' in source
   assert '"label": "199"' in source
