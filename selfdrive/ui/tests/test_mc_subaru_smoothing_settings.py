@@ -84,12 +84,16 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)' in source
   assert 'self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)' in source
-  assert 'self._manual_yield_torque_threshold.action_item.current_value = self._clamp_manual_yield_torque_threshold(' in source
+  assert 'self._manual_yield_torque_threshold.action_item.current_value = self._manual_yield_torque_threshold_index(' in source
   assert 'self._subaru_mads_steering_angle_cap.action_item.current_value = self._mads_steering_angle_cap_index(' in source
   assert 'self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)' in source
   assert 'self._manual_yield_torque_threshold.action_item.set_enabled(torque_threshold_enabled)' in source
   assert 'self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))' in source
   assert 'self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))' in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
+  assert "*range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50)" in source
+  assert "value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP" in source
+  assert "def _manual_yield_torque_threshold_index(value: int) -> int:" in source
   assert 'value = self._params.get(key, return_default=True)' in source
   assert "smoothing_enabled" not in source
   assert "resume_speed_enabled" not in source
@@ -129,6 +133,11 @@ def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
   assert '"label": "40 - Caution"' in source
   assert '"label": "80 - Stock"' in source
   assert '"label": "150"' in source
+  assert '"label": "200 - High"' in source
+  assert '"label": "500 - High"' in source
+  assert '"max": 500' in source
+  assert '"value": 155' not in source
+  assert '"value": 175' not in source
   assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in source
   assert '"title": "Custom Resume Softness"' in source
   assert 'no SubiPilot reclaim ramp is applied and your saved softness selection is kept' in source

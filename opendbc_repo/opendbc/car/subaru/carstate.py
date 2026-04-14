@@ -14,10 +14,15 @@ from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarState
 
 
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
+MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 500
 MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT = 80
 MANUAL_YIELD_TORQUE_THRESHOLD_REFRESH_FRAMES = 100
+MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
+  *range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP),
+  *range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50),
+)
 
 
 class CarState(CarStateBase, MadsCarState, SnGCarState):
@@ -63,9 +68,10 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
 
   @staticmethod
   def _clamp_manual_yield_torque_threshold(threshold: int) -> int:
-    clamped = max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(threshold, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
-    rounded = ((clamped + (MANUAL_YIELD_TORQUE_THRESHOLD_STEP // 2)) // MANUAL_YIELD_TORQUE_THRESHOLD_STEP) * MANUAL_YIELD_TORQUE_THRESHOLD_STEP
-    return max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(rounded, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+    return min(
+      MANUAL_YIELD_TORQUE_THRESHOLD_VALUES,
+      key=lambda value: (abs(value - threshold), value),
+    )
 
   def _get_stock_manual_yield_torque_threshold(self) -> int:
     return 75 if self.CP.flags & SubaruFlags.PREGLOBAL else MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT

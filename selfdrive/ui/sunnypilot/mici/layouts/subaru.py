@@ -25,8 +25,13 @@ RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
+MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 500
+MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
+  *range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP),
+  *range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50),
+)
 MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)
 
 
@@ -62,7 +67,7 @@ class SubaruLayoutMici(NavScroller):
       lambda: self._show_value_selector(
         self._manual_yield_torque_threshold_btn,
         "MCSubaruManualYieldTorqueThreshold",
-        list(range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP)),
+        list(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES),
         self._format_manual_yield_torque_threshold_label,
       )
     )
@@ -168,9 +173,10 @@ class SubaruLayoutMici(NavScroller):
 
   @staticmethod
   def _clamp_manual_yield_torque_threshold(value: int) -> int:
-    clamped = max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(value, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
-    rounded = ((clamped + (MANUAL_YIELD_TORQUE_THRESHOLD_STEP // 2)) // MANUAL_YIELD_TORQUE_THRESHOLD_STEP) * MANUAL_YIELD_TORQUE_THRESHOLD_STEP
-    return max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(rounded, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+    return min(
+      MANUAL_YIELD_TORQUE_THRESHOLD_VALUES,
+      key=lambda threshold: (abs(threshold - value), threshold),
+    )
 
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
@@ -179,6 +185,8 @@ class SubaruLayoutMici(NavScroller):
       return f"{clamped} - Caution"
     if clamped == 80:
       return "80 - Stock"
+    if clamped >= 200:
+      return f"{clamped} - High"
     return str(clamped)
 
   @staticmethod

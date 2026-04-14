@@ -24,6 +24,7 @@ from opendbc.car.subaru.carstate import (
   MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT,
   MANUAL_YIELD_TORQUE_THRESHOLD_MAX,
   MANUAL_YIELD_TORQUE_THRESHOLD_MIN,
+  MANUAL_YIELD_TORQUE_THRESHOLD_VALUES,
 )
 from opendbc.car.subaru.interface import CarInterface
 from opendbc.car.subaru.values import CAR
@@ -798,13 +799,25 @@ class TestSubaruCarController(unittest.TestCase):
     below_floor = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MIN - 25)
     at_floor = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
     above_stock = self._build_carstate(torque_threshold_enabled=True, torque_threshold=120)
-    above_ceiling = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50)
+    invalid_gap = self._build_carstate(torque_threshold_enabled=True, torque_threshold=175)
+    above_ceiling = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 1)
 
     self.assertEqual(disabled._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT)
     self.assertEqual(below_floor._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
     self.assertEqual(at_floor._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
     self.assertEqual(above_stock._get_active_manual_yield_torque_threshold(), 120)
+    self.assertEqual(invalid_gap._get_active_manual_yield_torque_threshold(), 150)
     self.assertEqual(above_ceiling._get_active_manual_yield_torque_threshold(), MANUAL_YIELD_TORQUE_THRESHOLD_MAX)
+
+  def test_manual_yield_torque_threshold_accepts_discrete_high_experimental_values(self):
+    for threshold in (150, 200, 250, 300, 350, 400, 450, 500):
+      with self.subTest(threshold=threshold):
+        cs = self._build_carstate(torque_threshold_enabled=True, torque_threshold=threshold)
+        self.assertEqual(cs._get_active_manual_yield_torque_threshold(), threshold)
+
+    self.assertIn(500, MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)
+    self.assertNotIn(155, MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)
+    self.assertNotIn(175, MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)
 
   def test_manual_yield_torque_threshold_uses_direct_detection_without_debounce(self):
     source = inspect.getsource(CarState.update)

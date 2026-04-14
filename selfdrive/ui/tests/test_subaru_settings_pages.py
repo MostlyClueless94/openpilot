@@ -75,6 +75,10 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
   assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
+  assert "*range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50)" in source
+  assert "value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP" in source
+  assert "def _manual_yield_torque_threshold_index(value: int) -> int:" in source
   assert '"Custom Yield Torque"' in source
   assert '"Manual Yield Torque Threshold"' in source
   assert '"Manual Yield Release Guard"' in source
@@ -125,7 +129,10 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
   assert 'BigParamControl("soft-capture\\nengage blend", "MCSubaruSoftCaptureEnabled")' in source
   assert 'BigButton("soft-capture\\nstrength")' in source
-  assert 'list(range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP))' in source
+  assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
+  assert "*range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50)" in source
+  assert "list(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)" in source
+  assert "175 - High" not in source
   assert 'list(range(7))' in source
   assert 'list(range(1, 4))' in source
   assert 'list(MADS_STEERING_ANGLE_CAP_VALUES)' in source
@@ -235,6 +242,11 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"label": "40 - Caution"' in metadata_source
   assert '"label": "80 - Stock"' in metadata_source
   assert '"label": "150"' in metadata_source
+  assert '"label": "200 - High"' in metadata_source
+  assert '"label": "500 - High"' in metadata_source
+  assert '"max": 500' in metadata_source
+  assert '"value": 155' not in metadata_source
+  assert '"value": 175' not in metadata_source
   assert '"label": "Standard"' in metadata_source
   assert '"label": "Max Soft"' in metadata_source
   assert '"label": "Light"' in metadata_source

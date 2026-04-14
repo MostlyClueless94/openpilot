@@ -44,13 +44,15 @@ CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
   + "threshold for your platform while keeping your saved test value. Settings near the minimum may falsely detect manual "
   + "override while openpilot is steering through turns. Values above 80 require more driver torque and may be slower to "
-  + "detect manual override. 40 is the minimum allowed test value."
+  + "detect manual override. Values above 150 are high experimental test points and may effectively disable manual-yield "
+  + "detection. 40 is the minimum allowed test value."
 )
 YIELD_TORQUE_DESC = (
   "Adjust the steering torque required to count as manual yield. Lower values detect lighter steady driver input sooner. "
   + "Settings near the minimum may falsely detect manual override while openpilot is steering through turns. 80 matches "
   + "the stock threshold on modern Subaru angle-LKAS platforms. Values above 80 are test values that require more driver "
-  + "torque and may be slower to detect manual override. 40 is the minimum allowed test value."
+  + "torque and may be slower to detect manual override. Values above 150 are high experimental test points and may "
+  + "effectively disable manual-yield detection. 40 is the minimum allowed test value."
 )
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
@@ -81,8 +83,14 @@ MATCH_VEHICLE_SPEEDOMETER_DESC = (
   + "Turn it off to show true wheel-speed-based speed instead."
 )
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
-MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
+MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
+MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 500
+MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
+  *range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP),
+  *range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50),
+)
+MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP = {idx: value for idx, value in enumerate(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)}
 MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)
 MADS_STEERING_ANGLE_CAP_VALUE_MAP = {idx: value for idx, value in enumerate(MADS_STEERING_ANGLE_CAP_VALUES)}
 
@@ -158,9 +166,10 @@ class MCCustomLayout(Widget):
       title=lambda: tr("Manual Yield Torque Threshold"),
       description=lambda: tr(YIELD_TORQUE_DESC),
       param="MCSubaruManualYieldTorqueThreshold",
-      min_value=MANUAL_YIELD_TORQUE_THRESHOLD_MIN,
-      max_value=MANUAL_YIELD_TORQUE_THRESHOLD_MAX,
-      value_change_step=MANUAL_YIELD_TORQUE_THRESHOLD_STEP,
+      min_value=0,
+      max_value=len(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES) - 1,
+      value_change_step=1,
+      value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP,
       label_callback=self._format_manual_yield_torque_threshold_label,
       inline=False,
     )
@@ -261,9 +270,15 @@ class MCCustomLayout(Widget):
 
   @staticmethod
   def _clamp_manual_yield_torque_threshold(value: int) -> int:
-    clamped = max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(value, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
-    rounded = ((clamped + (MANUAL_YIELD_TORQUE_THRESHOLD_STEP // 2)) // MANUAL_YIELD_TORQUE_THRESHOLD_STEP) * MANUAL_YIELD_TORQUE_THRESHOLD_STEP
-    return max(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, min(rounded, MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+    return min(
+      MANUAL_YIELD_TORQUE_THRESHOLD_VALUES,
+      key=lambda threshold: (abs(threshold - value), threshold),
+    )
+
+  @staticmethod
+  def _manual_yield_torque_threshold_index(value: int) -> int:
+    clamped = MCCustomLayout._clamp_manual_yield_torque_threshold(value)
+    return MANUAL_YIELD_TORQUE_THRESHOLD_VALUES.index(clamped)
 
   @staticmethod
   def _format_manual_yield_torque_threshold_label(value: int) -> str:
@@ -272,6 +287,8 @@ class MCCustomLayout(Widget):
       return f"{clamped} - {tr('Caution')}"
     if clamped == 80:
       return tr("80 - Stock")
+    if clamped >= 200:
+      return f"{clamped} - {tr('High')}"
     return str(clamped)
 
   @staticmethod
@@ -323,7 +340,7 @@ class MCCustomLayout(Widget):
     self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
     self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)
     self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)
-    self._manual_yield_torque_threshold.action_item.current_value = self._clamp_manual_yield_torque_threshold(
+    self._manual_yield_torque_threshold.action_item.current_value = self._manual_yield_torque_threshold_index(
       self._get_int_param("MCSubaruManualYieldTorqueThreshold", 80)
     )
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
