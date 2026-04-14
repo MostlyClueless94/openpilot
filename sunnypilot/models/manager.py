@@ -8,6 +8,7 @@ See the LICENSE.md file in the root directory for more details.
 import asyncio
 import os
 import time
+from urllib.parse import quote, unquote, urlparse
 
 import aiohttp
 from openpilot.common.params import Params
@@ -18,6 +19,32 @@ from openpilot.system.hardware.hw import Paths
 from cereal import messaging, custom
 from openpilot.sunnypilot.models.fetcher import ModelFetcher
 from openpilot.sunnypilot.models.helpers import verify_file, get_active_bundle
+
+
+def gitlab_raw_api_fallback_url(url: str) -> str | None:
+  """Return a GitLab API raw URL for public /-/raw/ URLs that direct-download poorly."""
+  parsed = urlparse(url)
+  if parsed.scheme not in ("http", "https") or parsed.netloc != "gitlab.com":
+    return None
+
+  marker = "/-/raw/"
+  if marker not in parsed.path:
+    return None
+
+  project_path, ref_and_path = parsed.path.split(marker, 1)
+  project_path = project_path.strip("/")
+  ref_and_path = ref_and_path.strip("/")
+  if "/" not in ref_and_path:
+    return None
+
+  ref, file_path = ref_and_path.split("/", 1)
+  if not project_path or not ref or not file_path:
+    return None
+
+  project = quote(unquote(project_path.strip("/")), safe="")
+  file_name = quote(unquote(file_path), safe="")
+  ref_name = quote(unquote(ref), safe="")
+  return f"{parsed.scheme}://gitlab.com/api/v4/projects/{project}/repository/files/{file_name}/raw?ref={ref_name}"
 
 
 class ModelManagerSP:
@@ -48,33 +75,61 @@ class ModelManagerSP:
 
     return max(1, int(eta))  # Return at least 1 second if download is ongoing
 
-  async def _download_file(self, url: str, path: str, model) -> None:
-    """Downloads a file with progress tracking"""
+  async def _download_file_from_url(self, session: aiohttp.ClientSession, url: str, path: str, model) -> None:
+    """Downloads a file with progress tracking from a single URL."""
     self._download_start_times[model.fileName] = time.monotonic()
 
-    async with aiohttp.ClientSession() as session:
-      async with session.get(url) as response:
-        response.raise_for_status()
-        total_size = int(response.headers.get("content-length", 0))
-        bytes_downloaded = 0
+    async with session.get(url) as response:
+      response.raise_for_status()
+      total_size = int(response.headers.get("content-length", 0))
+      bytes_downloaded = 0
 
-        with open(path, 'wb') as f:
-          async for chunk in response.content.iter_chunked(self._chunk_size):  # type: bytes
-            f.write(chunk)
-            bytes_downloaded += len(chunk)
+      with open(path, 'wb') as f:
+        async for chunk in response.content.iter_chunked(self._chunk_size):  # type: bytes
+          f.write(chunk)
+          bytes_downloaded += len(chunk)
 
-            if not self.params.get("ModelManager_DownloadIndex"):
-              raise Exception("Download cancelled")
+          if not self.params.get("ModelManager_DownloadIndex"):
+            raise Exception("Download cancelled")
 
-            if total_size > 0:
-              progress = (bytes_downloaded / total_size) * 100
-              model.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.downloading
-              model.downloadProgress.progress = progress
-              model.downloadProgress.eta = self._calculate_eta(model.fileName, progress)
-              self._report_status()
+          if total_size > 0:
+            progress = (bytes_downloaded / total_size) * 100
+            model.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.downloading
+            model.downloadProgress.progress = progress
+            model.downloadProgress.eta = self._calculate_eta(model.fileName, progress)
+            self._report_status()
 
-        # Clean up start time after download completes
-        del self._download_start_times[model.fileName]
+  async def _download_file(self, url: str, path: str, model) -> None:
+    """Downloads a file with progress tracking and GitLab raw URL fallback."""
+    fallback_url = gitlab_raw_api_fallback_url(url)
+    fallback_attempted = False
+
+    try:
+      async with aiohttp.ClientSession() as session:
+        try:
+          await self._download_file_from_url(session, url, path, model)
+        except aiohttp.ClientResponseError as e:
+          if e.status not in (401, 403, 404) or fallback_url is None:
+            raise
+
+          fallback_attempted = True
+          parsed = urlparse(url)
+          cloudlog.warning(
+            f"Model download direct raw URL failed with HTTP {e.status}; "
+            f"retrying GitLab API fallback for {parsed.netloc}{parsed.path}"
+          )
+          await self._download_file_from_url(session, fallback_url, path, model)
+
+    except Exception as e:
+      parsed = urlparse(url)
+      cloudlog.warning(
+        f"Model download failed for {parsed.netloc}{parsed.path}; "
+        f"gitlab_api_fallback_attempted={fallback_attempted}: {e}"
+      )
+      raise
+    finally:
+      # Clean up start time after download completes or fails.
+      self._download_start_times.pop(model.fileName, None)
 
   async def _process_artifact(self, artifact, destination_path: str) -> None:
     """Processes a single model download including verification"""
