@@ -164,6 +164,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}},
     {"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}},
+    {"MCSubaruMadsTighterTurnsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "120"}},
     {"CustomAccIncrementsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CustomAccLongPressIncrement", {PERSISTENT | BACKUP, INT, "5"}},
     {"CustomAccShortPressIncrement", {PERSISTENT | BACKUP, INT, "1"}},

@@ -14,6 +14,8 @@ from opendbc.car.subaru.carcontroller import (
   ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS,
   ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS,
   CarController,
+  MADS_ONLY_MAX_STEER_ANGLE,
+  MADS_ONLY_MAX_STEER_ANGLE_MAX,
   MADS_ONLY_MIN_SPEED,
   SOFT_CAPTURE_LEVEL_PARAMS,
 )
@@ -38,6 +40,8 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldTorqueThreshold",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
+    "MCSubaruMadsTighterTurnsEnabled",
+    "MCSubaruMadsMaxSteeringAngle",
   )
 
   def setUp(self):
@@ -70,12 +74,15 @@ class TestSubaruCarController(unittest.TestCase):
 
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
                         resume_softness_enabled=False, resume_softness_setting=None,
-                        release_guard_enabled=False, release_guard_level=2):
+                        release_guard_enabled=False, release_guard_level=2,
+                        mads_tighter_turns_enabled=False, mads_max_steering_angle=120):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
     self.params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", release_guard_enabled)
     self.params.put("MCSubaruManualYieldReleaseGuardLevel", str(release_guard_level))
+    self.params.put_bool("MCSubaruMadsTighterTurnsEnabled", mads_tighter_turns_enabled)
+    self.params.put("MCSubaruMadsMaxSteeringAngle", str(mads_max_steering_angle))
     if resume_softness_setting is not None:
       self.params.put("MCSubaruManualYieldResumeSoftness", str(resume_softness_setting))
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
@@ -590,6 +597,102 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertEqual(msg, expected)
     self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_mads_only_tighter_turns_toggle_off_preserves_stock_angle_gate(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=False,
+      mads_max_steering_angle=int(MADS_ONLY_MAX_STEER_ANGLE_MAX),
+    )
+
+    self.assertEqual(controller._get_mads_only_max_steer_angle(), MADS_ONLY_MAX_STEER_ANGLE)
+
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, MADS_ONLY_MAX_STEER_ANGLE)
+    cc = self._build_cc(True, False, MADS_ONLY_MAX_STEER_ANGLE + 4.0)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_mads_only_tighter_turns_levels_increase_angle_cap(self):
+    for angle_cap in (120, 180, 240, 360, 545):
+      controller = self._build_controller(
+        mads_tighter_turns_enabled=True,
+        mads_max_steering_angle=angle_cap,
+      )
+
+      self.assertEqual(controller._get_mads_only_max_steer_angle(), float(angle_cap))
+
+  def test_mads_only_tighter_turns_clamps_invalid_saved_angle_caps(self):
+    below_floor = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=60,
+    )
+    above_ceiling = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=900,
+    )
+
+    self.assertEqual(below_floor._get_mads_only_max_steer_angle(), MADS_ONLY_MAX_STEER_ANGLE)
+    self.assertEqual(above_ceiling._get_mads_only_max_steer_angle(), MADS_ONLY_MAX_STEER_ANGLE_MAX)
+
+  def test_mads_only_tighter_turns_allows_selected_higher_angle_cap(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=180,
+    )
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 150.0)
+    cc = self._build_cc(True, False, 154.0)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertNotEqual(msg, inhibited)
+    self.assertGreater(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_mads_only_tighter_turns_does_not_override_standstill_or_gear_gates(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=545,
+    )
+    cc = self._build_cc(True, False, 154.0)
+
+    standstill_cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 150.0, standstill=True)
+    controller.apply_angle_last = standstill_cs.out.steeringAngleDeg
+    standstill_msg = controller.handle_angle_lateral(cc, standstill_cs)
+    standstill_expected = subarucan.create_steering_control_angle(controller.packer, standstill_cs.out.steeringAngleDeg, False)
+    self.assertEqual(standstill_msg, standstill_expected)
+
+    reverse_cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 150.0)
+    reverse_cs.out.gearShifter = structs.CarState.GearShifter.reverse
+    controller.apply_angle_last = reverse_cs.out.steeringAngleDeg
+    reverse_msg = controller.handle_angle_lateral(cc, reverse_cs)
+    reverse_expected = subarucan.create_steering_control_angle(controller.packer, reverse_cs.out.steeringAngleDeg, False)
+    self.assertEqual(reverse_msg, reverse_expected)
+
+  def test_mads_only_tighter_turns_does_not_affect_full_engaged_lateral(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=False,
+      mads_max_steering_angle=120,
+    )
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 150.0)
+    cc = self._build_cc(True, True, 154.0)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertNotEqual(msg, inhibited)
+    self.assertGreater(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_mads_only_tighter_turns_does_not_touch_torque_lkas_path(self):
+    source = inspect.getsource(CarController.handle_torque_lateral)
+
+    self.assertNotIn("MCSubaruMadsTighterTurnsEnabled", source)
+    self.assertNotIn("MCSubaruMadsMaxSteeringAngle", source)
 
   def test_full_engaged_lateral_ignores_mads_only_low_speed_floor(self):
     controller = self._build_controller()

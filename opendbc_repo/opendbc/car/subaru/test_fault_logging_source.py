@@ -37,6 +37,7 @@ def test_carcontroller_request_logs_include_target_and_handoff_context():
   assert 'angle LKAS request={lkas_request} inhibit={inhibit_reason} target={steer_target:.2f}' in source
   assert 'lastApplied={self.apply_angle_last:.2f}' in source
   assert 'measuredAngle={CS.out.steeringAngleDeg:.2f}' in source
+  assert 'madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f}' in source
   assert 'measuredRate={CS.out.steeringRateDeg:.2f}' in source
   assert 'handoffActive={handoff_active}' in source
   assert 'rampActive={manual_override_ramp_active}' in source
@@ -86,6 +87,10 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_carstate_source
   assert "MCSubaruSoftCapture" not in ford_controller_source
   assert "MCSubaruSoftCapture" not in ford_carstate_source
+  assert "MCSubaruMadsTighterTurns" not in ford_controller_source
+  assert "MCSubaruMadsTighterTurns" not in ford_carstate_source
+  assert "MCSubaruMadsMaxSteeringAngle" not in ford_controller_source
+  assert "MCSubaruMadsMaxSteeringAngle" not in ford_carstate_source
   assert "MCSubaruSmoothingTune" not in ford_controller_source
   assert "MCSubaruSmoothingTune" not in ford_carstate_source
   assert "MCSubaruManualYieldResumeSpeed" not in ford_controller_source

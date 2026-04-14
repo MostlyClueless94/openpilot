@@ -16,6 +16,7 @@ MAX_STEER_RATE = 25  # deg/s
 MAX_STEER_RATE_FRAMES = 7  # tx control frames needed before torque can be cut
 MADS_ONLY_MIN_SPEED = 0.44704  # m/s (1 mph)
 MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
+MADS_ONLY_MAX_STEER_ANGLE_MAX = 545.0  # deg, matches Subaru angle-LKAS safety max
 ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES = 10  # steering command frames (~200 ms with STEER_STEP=2)
 ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES = 36  # validated default reclaim ramp (steering command frames, ~720 ms with STEER_STEP=2)
 ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MIN = 0
@@ -60,6 +61,8 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_manual_yield_release_guard_level = ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT
     self.mc_subaru_soft_capture_enabled = False
     self.mc_subaru_soft_capture_level = 3
+    self.mc_subaru_mads_tighter_turns_enabled = False
+    self.mc_subaru_mads_max_steering_angle = MADS_ONLY_MAX_STEER_ANGLE
     self.angle_driver_override_hold_frames = 0
     self.angle_driver_override_ramp_frames = 0
     self.angle_driver_override_ramp_total_frames = ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES
@@ -119,6 +122,15 @@ class CarController(CarControllerBase, SnGCarController):
   def _manual_yield_handoff_enabled(self) -> bool:
     return self.mc_subaru_manual_yield_resume_softness_enabled or self.mc_subaru_manual_yield_release_guard_enabled
 
+  def _get_mads_only_max_steer_angle(self) -> float:
+    if not self.mc_subaru_mads_tighter_turns_enabled:
+      return MADS_ONLY_MAX_STEER_ANGLE
+    return float(np.clip(
+      self.mc_subaru_mads_max_steering_angle,
+      MADS_ONLY_MAX_STEER_ANGLE,
+      MADS_ONLY_MAX_STEER_ANGLE_MAX,
+    ))
+
   def _get_soft_capture_level(self) -> int:
     if not self.mc_subaru_soft_capture_enabled:
       return 0
@@ -164,6 +176,12 @@ class CarController(CarControllerBase, SnGCarController):
       self._get_int_param("MCSubaruSoftCaptureLevel", 3),
       1,
       len(SOFT_CAPTURE_LEVEL_PARAMS) - 1,
+    ))
+    self.mc_subaru_mads_tighter_turns_enabled = self._get_bool_param("MCSubaruMadsTighterTurnsEnabled")
+    self.mc_subaru_mads_max_steering_angle = float(np.clip(
+      self._get_int_param("MCSubaruMadsMaxSteeringAngle", int(MADS_ONLY_MAX_STEER_ANGLE)),
+      MADS_ONLY_MAX_STEER_ANGLE,
+      MADS_ONLY_MAX_STEER_ANGLE_MAX,
     ))
 
   def _reset_angle_driver_override_ramp(self):
@@ -280,7 +298,8 @@ class CarController(CarControllerBase, SnGCarController):
     # Angle-LKAS can hard fault during very low-speed MADS lateral-only maneuvers.
     # Keep MADS behavior above 1 mph, but block sharp parking-lot style steering in lateral-only mode.
     mads_only = CC.latActive and not CC.enabled
-    mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < MADS_ONLY_MAX_STEER_ANGLE
+    mads_only_max_steer_angle = self._get_mads_only_max_steer_angle()
+    mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < mads_only_max_steer_angle
     lkas_allowed = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
       CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill
     angle_driver_override, ramp_will_start = self._update_angle_driver_override_state(
@@ -341,6 +360,7 @@ class CarController(CarControllerBase, SnGCarController):
       (
         f"angle LKAS request={lkas_request} inhibit={inhibit_reason} target={steer_target:.2f} "
         + f"lastApplied={self.apply_angle_last:.2f} measuredAngle={CS.out.steeringAngleDeg:.2f} "
+        + f"madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f} "
         + f"measuredRate={CS.out.steeringRateDeg:.2f} handoffActive={handoff_active} "
         + f"rampActive={manual_override_ramp_active} latActive={CC.latActive} enabled={CC.enabled}"
       ),
