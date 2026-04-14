@@ -150,6 +150,8 @@ def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
   assert '"MCSubaruMadsMaxSteeringAngle"' in source
   assert '"title": "MADS Steering Angle Cap"' in source
   assert '"label": "120 - Stock"' in source
+  assert '"label": "190"' in source
+  assert '"label": "200"' in source
   assert '"label": "545 - Max Safe"' in source
   assert 'does not bypass panda safety or normal driving limits' in source
   assert '"MCSubaruSoftCaptureEnabled"' in source

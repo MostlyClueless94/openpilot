@@ -74,6 +74,7 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
   assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
   assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
+  assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 200, 240, 360, 545)" in source
   assert '"Custom Yield Torque"' in source
   assert '"Manual Yield Torque Threshold"' in source
   assert '"Manual Yield Release Guard"' in source
@@ -119,6 +120,7 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigButton("release guard\\nstrength")' in source
   assert 'BigParamControl("tighter MADS\\nturns", "MCSubaruMadsTighterTurnsEnabled")' in source
   assert 'BigButton("MADS steering\\nangle cap")' in source
+  assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 200, 240, 360, 545)" in source
   assert 'BigParamControl("soft-capture\\nengage blend", "MCSubaruSoftCaptureEnabled")' in source
   assert 'BigButton("soft-capture\\nstrength")' in source
   assert 'list(range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP))' in source
@@ -234,6 +236,8 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"label": "Light"' in metadata_source
   assert '"label": "Strong"' in metadata_source
   assert '"label": "120 - Stock"' in metadata_source
+  assert '"label": "190"' in metadata_source
+  assert '"label": "200"' in metadata_source
   assert '"label": "545 - Max Safe"' in metadata_source
   for param in REMOVED_SUBARU_TUNING_PARAMS:
     assert param not in params_source

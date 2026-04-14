@@ -617,7 +617,7 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
 
   def test_mads_only_tighter_turns_levels_increase_angle_cap(self):
-    for angle_cap in (120, 180, 240, 360, 545):
+    for angle_cap in (120, 180, 190, 200, 240, 360, 545):
       controller = self._build_controller(
         mads_tighter_turns_enabled=True,
         mads_max_steering_angle=angle_cap,
