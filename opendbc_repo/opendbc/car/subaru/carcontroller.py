@@ -17,6 +17,14 @@ MAX_STEER_RATE_FRAMES = 7  # tx control frames needed before torque can be cut
 MADS_ONLY_MIN_SPEED = 0.44704  # m/s (1 mph)
 MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
 MADS_ONLY_MAX_STEER_ANGLE_MAX = 545.0  # deg, matches Subaru angle-LKAS safety max
+MADS_ONLY_FAULT_GUARD_LOW_SPEED = 8.0 * 0.44704  # m/s
+MADS_ONLY_FAULT_GUARD_HIGH_SPEED = 15.0 * 0.44704  # m/s
+MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP = 180.0  # deg
+MADS_ONLY_FAULT_GUARD_RATE_THRESHOLD = 120.0  # deg/s
+MADS_ONLY_FAULT_GUARD_QUIET_RATE = 60.0  # deg/s
+MADS_ONLY_FAULT_GUARD_QUIET_FRAMES = 10  # steering command frames (~200 ms with STEER_STEP=2)
+MADS_ONLY_FAULT_GUARD_ANGLE_MARGIN = 20.0  # deg below active cap before high-rate guard arms
+MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN = 5.0  # deg below active cap before quiet countdown can run
 ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES = 10  # steering command frames (~200 ms with STEER_STEP=2)
 ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES = 36  # validated default reclaim ramp (steering command frames, ~720 ms with STEER_STEP=2)
 ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MIN = 0
@@ -59,13 +67,13 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_manual_yield_resume_softness = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
     self.mc_subaru_manual_yield_release_guard_enabled = False
     self.mc_subaru_manual_yield_release_guard_level = ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT
-    self.mc_subaru_manual_yield_full_release_enabled = True
     self.mc_subaru_soft_capture_enabled = False
     self.mc_subaru_soft_capture_level = 3
     self.mc_subaru_mads_tighter_turns_enabled = False
     self.mc_subaru_mads_max_steering_angle = MADS_ONLY_MAX_STEER_ANGLE
     self.subaru_manual_yield_full_release_active = False
     self.subaru_effective_lkas_active = False
+    self.mads_lkas_fault_guard_quiet_frames = 0
     self.angle_driver_override_hold_frames = 0
     self.angle_driver_override_ramp_frames = 0
     self.angle_driver_override_ramp_total_frames = ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES
@@ -135,6 +143,54 @@ class CarController(CarControllerBase, SnGCarController):
     ))
 
   @staticmethod
+  def _get_mads_only_active_steer_angle_cap(selected_cap: float, speed: float) -> float:
+    low_speed_cap = min(selected_cap, MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP)
+    if speed <= MADS_ONLY_FAULT_GUARD_LOW_SPEED:
+      return low_speed_cap
+    if speed >= MADS_ONLY_FAULT_GUARD_HIGH_SPEED:
+      return selected_cap
+
+    return float(np.interp(
+      speed,
+      [MADS_ONLY_FAULT_GUARD_LOW_SPEED, MADS_ONLY_FAULT_GUARD_HIGH_SPEED],
+      [low_speed_cap, selected_cap],
+    ))
+
+  def _update_mads_lkas_fault_guard(self, mads_only: bool, speed: float, measured_angle: float,
+                                    steering_rate: float, active_cap: float) -> tuple[bool, str]:
+    if not mads_only:
+      self.mads_lkas_fault_guard_quiet_frames = 0
+      return False, "none"
+
+    angle_threshold = max(
+      MADS_ONLY_MAX_STEER_ANGLE,
+      min(MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP, active_cap - MADS_ONLY_FAULT_GUARD_ANGLE_MARGIN),
+    )
+    high_rate_risk = (
+      speed <= MADS_ONLY_FAULT_GUARD_HIGH_SPEED
+      and abs(measured_angle) >= angle_threshold
+      and abs(steering_rate) >= MADS_ONLY_FAULT_GUARD_RATE_THRESHOLD
+    )
+
+    if high_rate_risk:
+      self.mads_lkas_fault_guard_quiet_frames = MADS_ONLY_FAULT_GUARD_QUIET_FRAMES
+      return True, "mads_rate_guard"
+
+    if self.mads_lkas_fault_guard_quiet_frames <= 0:
+      return False, "none"
+
+    quiet_enough = (
+      abs(steering_rate) <= MADS_ONLY_FAULT_GUARD_QUIET_RATE
+      and abs(measured_angle) < active_cap - MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN
+    )
+    if quiet_enough:
+      self.mads_lkas_fault_guard_quiet_frames -= 1
+    else:
+      self.mads_lkas_fault_guard_quiet_frames = MADS_ONLY_FAULT_GUARD_QUIET_FRAMES
+
+    return True, "mads_rate_guard_quiet"
+
+  @staticmethod
   def _apply_mads_only_steer_target_cap(steer_target: float, mads_only: bool, lkas_request: bool,
                                         max_steer_angle: float) -> tuple[float, bool]:
     if not (mads_only and lkas_request):
@@ -183,7 +239,6 @@ class CarController(CarControllerBase, SnGCarController):
       ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN,
       ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX,
     ))
-    self.mc_subaru_manual_yield_full_release_enabled = self._get_bool_param("MCSubaruManualYieldFullReleaseEnabled", True)
     self.mc_subaru_soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self.mc_subaru_soft_capture_level = int(np.clip(
       self._get_int_param("MCSubaruSoftCaptureLevel", 3),
@@ -311,8 +366,23 @@ class CarController(CarControllerBase, SnGCarController):
     # Angle-LKAS can hard fault during very low-speed MADS lateral-only maneuvers.
     # Keep MADS behavior above 1 mph, but cap both measured angle and requested target in lateral-only mode.
     mads_only = CC.latActive and not CC.enabled
-    mads_only_max_steer_angle = self._get_mads_only_max_steer_angle()
-    mads_only_ok = CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED and abs(CS.out.steeringAngleDeg) < mads_only_max_steer_angle
+    mads_only_selected_steer_angle = self._get_mads_only_max_steer_angle()
+    mads_only_active_steer_angle = self._get_mads_only_active_steer_angle_cap(
+      mads_only_selected_steer_angle,
+      CS.out.vEgoRaw,
+    )
+    mads_fault_guard_active, mads_fault_guard_reason = self._update_mads_lkas_fault_guard(
+      mads_only,
+      CS.out.vEgoRaw,
+      CS.out.steeringAngleDeg,
+      CS.out.steeringRateDeg,
+      mads_only_active_steer_angle,
+    )
+    mads_only_ok = (
+      CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED
+      and abs(CS.out.steeringAngleDeg) < mads_only_active_steer_angle
+      and not mads_fault_guard_active
+    )
     lkas_allowed = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
       CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill
     angle_driver_override, ramp_will_start = self._update_angle_driver_override_state(
@@ -321,23 +391,31 @@ class CarController(CarControllerBase, SnGCarController):
       CS.out.steeringAngleDeg,
       CS.out.steeringRateDeg,
     )
-    lkas_request = lkas_allowed and not angle_driver_override
-    self.subaru_manual_yield_full_release_active = (
-      self.mc_subaru_manual_yield_full_release_enabled and angle_driver_override
-    )
-    self.subaru_effective_lkas_active = CC.latActive and not self.subaru_manual_yield_full_release_active
+    mads_only_inhibited = mads_only and not mads_only_ok
+    self.subaru_manual_yield_full_release_active = lkas_allowed and (CS.out.steeringPressed or angle_driver_override)
+    manual_yield_active = angle_driver_override or self.subaru_manual_yield_full_release_active
+    lkas_request = lkas_allowed and not manual_yield_active
+    self.subaru_effective_lkas_active = CC.latActive and not self.subaru_manual_yield_full_release_active and not mads_only_inhibited
 
     inhibit_reason = "none"
     if not CC.latActive:
       inhibit_reason = "lat_inactive"
+    elif self.subaru_manual_yield_full_release_active:
+      inhibit_reason = "manual_yield_full_release"
     elif angle_driver_override:
       inhibit_reason = "manual_override"
     elif CS.out.gearShifter != structs.CarState.GearShifter.drive:
       inhibit_reason = "gear_not_drive"
     elif CS.out.standstill:
       inhibit_reason = "standstill"
+    elif mads_only and CS.out.vEgoRaw <= MADS_ONLY_MIN_SPEED:
+      inhibit_reason = "mads_below_min_speed"
+    elif mads_only and abs(CS.out.steeringAngleDeg) >= mads_only_active_steer_angle:
+      inhibit_reason = "mads_angle_limit"
+    elif mads_only and mads_fault_guard_active:
+      inhibit_reason = mads_fault_guard_reason
     elif mads_only and not mads_only_ok:
-      inhibit_reason = "mads_below_min_speed" if CS.out.vEgoRaw <= MADS_ONLY_MIN_SPEED else "mads_angle_limit"
+      inhibit_reason = "mads_inhibited"
 
     self._log_transition("angle_lkas_inhibit", inhibit_reason, f"angle LKAS inhibit={inhibit_reason}")
     self._log_transition(
@@ -372,7 +450,7 @@ class CarController(CarControllerBase, SnGCarController):
       manual_override_ramp_active = False
 
     handoff_active = angle_driver_override or ramp_will_start or manual_override_ramp_active
-    effective_lkas_recapture_active = CC.latActive and not self.subaru_manual_yield_full_release_active
+    effective_lkas_recapture_active = self.subaru_effective_lkas_active
 
     self._log_transition(
       "angle_driver_override_ramp",
@@ -391,8 +469,19 @@ class CarController(CarControllerBase, SnGCarController):
       self.subaru_manual_yield_full_release_active,
       (
         f"angle manual yield full release active={self.subaru_manual_yield_full_release_active} "
-        + f"enabled={self.mc_subaru_manual_yield_full_release_enabled} "
-        + f"manualYieldActive={angle_driver_override} effectiveLkasState={self.subaru_effective_lkas_active}"
+        + f"steeringPressed={CS.out.steeringPressed} "
+        + f"manualYieldActive={manual_yield_active} effectiveLkasState={self.subaru_effective_lkas_active}"
+      ),
+    )
+    self._log_transition(
+      "mads_lkas_fault_guard",
+      (mads_fault_guard_active, mads_fault_guard_reason),
+      (
+        f"mads LKAS fault guard active={mads_fault_guard_active} reason={mads_fault_guard_reason} "
+        + f"quietFrames={self.mads_lkas_fault_guard_quiet_frames} "
+        + f"selectedCap={mads_only_selected_steer_angle:.2f} activeCap={mads_only_active_steer_angle:.2f} "
+        + f"measuredAngle={CS.out.steeringAngleDeg:.2f} measuredRate={CS.out.steeringRateDeg:.2f} "
+        + f"speed={CS.out.vEgoRaw:.2f} madsOnly={mads_only}"
       ),
     )
 
@@ -408,7 +497,7 @@ class CarController(CarControllerBase, SnGCarController):
       steer_target,
       mads_only,
       lkas_request,
-      mads_only_max_steer_angle,
+      mads_only_active_steer_angle,
     )
 
     apply_steer = apply_std_steer_angle_limits(
@@ -425,7 +514,7 @@ class CarController(CarControllerBase, SnGCarController):
       apply_steer,
       mads_only,
       lkas_request,
-      mads_only_max_steer_angle,
+      mads_only_active_steer_angle,
     )
 
     if not lkas_request:
@@ -439,8 +528,8 @@ class CarController(CarControllerBase, SnGCarController):
         f"mads target cap clamped={mads_cap_clamped} rawTarget={raw_steer_target:.2f} "
         + f"targetBeforeCap={mads_target_before_cap:.2f} cappedTarget={steer_target:.2f} "
         + f"applyBeforeCap={apply_steer_before_mads_cap:.2f} apply={apply_steer:.2f} "
-        + f"cap={mads_only_max_steer_angle:.2f} measuredAngle={CS.out.steeringAngleDeg:.2f} "
-        + f"speed={CS.out.vEgoRaw:.2f} madsOnly={mads_only}"
+        + f"selectedCap={mads_only_selected_steer_angle:.2f} activeCap={mads_only_active_steer_angle:.2f} "
+        + f"measuredAngle={CS.out.steeringAngleDeg:.2f} speed={CS.out.vEgoRaw:.2f} madsOnly={mads_only}"
       ),
     )
     self._log_transition(
@@ -450,10 +539,12 @@ class CarController(CarControllerBase, SnGCarController):
         f"angle LKAS request={lkas_request} inhibit={inhibit_reason} rawTarget={raw_steer_target:.2f} "
         + f"target={steer_target:.2f} apply={apply_steer:.2f} lastApplied={self.apply_angle_last:.2f} "
         + f"measuredAngle={CS.out.steeringAngleDeg:.2f} speed={CS.out.vEgoRaw:.2f} "
-        + f"madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f} "
-        + f"madsCapClamped={mads_cap_clamped} measuredRate={CS.out.steeringRateDeg:.2f} "
+        + f"madsOnly={mads_only} madsSelectedCap={mads_only_selected_steer_angle:.2f} "
+        + f"madsActiveCap={mads_only_active_steer_angle:.2f} madsCapClamped={mads_cap_clamped} "
+        + f"madsFaultGuardActive={mads_fault_guard_active} madsFaultGuardReason={mads_fault_guard_reason} "
+        + f"measuredRate={CS.out.steeringRateDeg:.2f} "
         + f"handoffActive={handoff_active} rampActive={manual_override_ramp_active} "
-        + f"manualYieldActive={angle_driver_override} fullReleaseEnabled={self.mc_subaru_manual_yield_full_release_enabled} "
+        + f"manualYieldActive={manual_yield_active} "
         + f"fullReleaseActive={self.subaru_manual_yield_full_release_active} effectiveLkasState={self.subaru_effective_lkas_active} "
         + f"latActive={CC.latActive} enabled={CC.enabled}"
       ),

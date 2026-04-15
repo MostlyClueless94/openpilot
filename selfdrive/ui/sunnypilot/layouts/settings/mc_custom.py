@@ -33,12 +33,14 @@ RELEASE_GUARD_STRENGTH_DESC = (
 )
 MADS_TIGHTER_TURNS_DESC = (
   "Cap Subaru MADS lateral-only requested steering angle so tight-turn testing cannot request more than the selected value. "
-  + "The cap also remains a measured-angle guard; it does not bypass panda safety or normal driving limits."
+  + "Built-in low-speed fault protection shapes high caps down to 180 deg at or below 8 mph and temporarily releases LKAS "
+  + "during high-rate tight turns. This does not bypass panda safety or normal driving limits."
 )
 MADS_STEERING_ANGLE_CAP_DESC = (
   "Choose the Subaru MADS lateral-only requested steering angle cap. 120 deg is stock/current behavior. "
-  + "Higher values allow more MADS-only turning while still capping requested angle and inhibiting LKAS "
-  + "when the measured wheel angle reaches the cap. 545 deg is the existing angle-LKAS safety maximum, not unlimited."
+  + "Higher values allow more MADS-only turning above 15 mph. Below 8 mph, Subaru fault protection limits the active cap "
+  + "to 180 deg; between 8 and 15 mph it ramps up to the selected value. The cap also remains a measured-angle guard. "
+  + "545 deg is the existing angle-LKAS safety maximum, not unlimited."
 )
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
@@ -57,10 +59,6 @@ YIELD_TORQUE_DESC = (
 FILTERED_YIELD_DETECTION_DESC = (
   "Use Ford-style filtering for Subaru manual-yield detection so light hand torque can stay latched through brief "
   + "dropouts. This keeps the selected torque threshold, but requires persistent input before latching."
-)
-FULL_MANUAL_YIELD_RELEASE_DESC = (
-  "Release Subaru LKAS/EPS while manual yield is active so the wheel feels like MADS is off. "
-  + "MADS stays enabled, and release guard, resume softness, and soft-capture still control re-entry."
 )
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
@@ -187,12 +185,6 @@ class MCCustomLayout(Widget):
       param="MCSubaruManualYieldFilteredDetectionEnabled",
       initial_state=self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled"),
     )
-    self._manual_yield_full_release = toggle_item_sp(
-      title=lambda: tr("Full Manual Yield Release"),
-      description=lambda: tr(FULL_MANUAL_YIELD_RELEASE_DESC),
-      param="MCSubaruManualYieldFullReleaseEnabled",
-      initial_state=self._get_bool_param("MCSubaruManualYieldFullReleaseEnabled", True),
-    )
     self._manual_yield_resume_softness_enabled = toggle_item_sp(
       title=lambda: tr("Custom Resume Softness"),
       description=lambda: tr(CUSTOM_RESUME_SOFTNESS_DESC),
@@ -271,7 +263,6 @@ class MCCustomLayout(Widget):
       self._manual_yield_torque_threshold_enabled,
       self._manual_yield_torque_threshold,
       self._manual_yield_filtered_detection,
-      self._manual_yield_full_release,
       self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
       self._manual_yield_release_guard_enabled,
@@ -340,7 +331,6 @@ class MCCustomLayout(Widget):
     self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)
     self._manual_yield_filtered_detection.set_visible(advanced_tuning_enabled)
-    self._manual_yield_full_release.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)
@@ -354,7 +344,6 @@ class MCCustomLayout(Widget):
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
     filtered_detection_enabled = self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled")
-    full_release_enabled = self._get_bool_param("MCSubaruManualYieldFullReleaseEnabled", True)
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled")
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     mads_tighter_turns_enabled = self._get_bool_param("MCSubaruMadsTighterTurnsEnabled")
@@ -364,7 +353,6 @@ class MCCustomLayout(Widget):
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
     self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)
     self._manual_yield_filtered_detection.action_item.set_state(filtered_detection_enabled)
-    self._manual_yield_full_release.action_item.set_state(full_release_enabled)
     self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
     self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)
     self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)

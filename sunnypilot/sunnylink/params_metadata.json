@@ -329,10 +329,6 @@
     "title": "Filtered Yield Detection",
     "description": "Use Ford-style filtering for Subaru manual-yield detection so light hand torque can stay latched through brief torque dropouts. This keeps the selected torque threshold, but requires persistent input before latching."
   },
-  "MCSubaruManualYieldFullReleaseEnabled": {
-    "title": "Full Manual Yield Release",
-    "description": "Release Subaru LKAS/EPS while manual yield is active so the wheel feels like MADS is off. MADS stays enabled, and release guard, resume softness, and soft-capture still control re-entry."
-  },
   "MCSubaruManualYieldResumeSoftnessEnabled": {
     "title": "Custom Resume Softness",
     "description": "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied and your saved softness selection is kept for later testing."
@@ -371,11 +367,11 @@
   },
   "MCSubaruMadsTighterTurnsEnabled": {
     "title": "Tighter MADS Turns",
-    "description": "Cap Subaru MADS lateral-only requested steering angle so tight-turn testing cannot request more than the selected value. The cap also remains a measured-angle guard; it does not bypass panda safety or normal driving limits."
+    "description": "Cap Subaru MADS lateral-only requested steering angle so tight-turn testing cannot request more than the selected value. Built-in low-speed fault protection shapes high caps down to 180 deg at or below 8 mph and temporarily releases LKAS during high-rate tight turns. This does not bypass panda safety or normal driving limits."
   },
   "MCSubaruMadsMaxSteeringAngle": {
     "title": "MADS Steering Angle Cap",
-    "description": "Choose the Subaru MADS lateral-only requested steering angle cap. 120 deg is stock/current behavior. Higher values allow more MADS-only turning while still capping requested angle and inhibiting LKAS when the measured wheel angle reaches the cap. 545 deg is the existing angle-LKAS safety maximum, not unlimited.",
+    "description": "Choose the Subaru MADS lateral-only requested steering angle cap. 120 deg is stock/current behavior. Higher values allow more MADS-only turning above 15 mph. Below 8 mph, Subaru fault protection limits the active cap to 180 deg; between 8 and 15 mph it ramps up to the selected value. The cap also remains a measured-angle guard. 545 deg is the existing angle-LKAS safety maximum, not unlimited.",
     "options": [
       { "value": 120, "label": "120 - Stock" },
       { "value": 180, "label": "180" },
