@@ -3,6 +3,7 @@ import unittest
 from types import SimpleNamespace
 
 from openpilot.common.params import Params
+from opendbc.car.lateral import apply_std_steer_angle_limits
 from opendbc.car import structs
 from opendbc.car.subaru.fingerprints import FW_VERSIONS
 from opendbc.car.subaru import subarucan
@@ -23,6 +24,9 @@ from opendbc.car.subaru.carcontroller import (
   MADS_ONLY_MAX_STEER_ANGLE_MAX,
   MADS_ONLY_MIN_SPEED,
   SOFT_CAPTURE_LEVEL_PARAMS,
+  SUBARU_UNWIND_RATE_LEVEL_MAX,
+  SUBARU_UNWIND_RATE_LEVEL_MIN,
+  SUBARU_UNWIND_RATE_LEVEL_VALUES,
 )
 from opendbc.car.subaru.carstate import (
   CarState,
@@ -49,6 +53,7 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruSoftCaptureLevel",
     "MCSubaruMadsTighterTurnsEnabled",
     "MCSubaruMadsMaxSteeringAngle",
+    "MCSubaruUnwindRateLevel",
   )
 
   def setUp(self):
@@ -82,7 +87,8 @@ class TestSubaruCarController(unittest.TestCase):
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
                         resume_softness_enabled=False, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2,
-                        mads_tighter_turns_enabled=False, mads_max_steering_angle=120):
+                        mads_tighter_turns_enabled=False, mads_max_steering_angle=120,
+                        unwind_rate_level=0):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
@@ -90,6 +96,7 @@ class TestSubaruCarController(unittest.TestCase):
     self.params.put("MCSubaruManualYieldReleaseGuardLevel", str(release_guard_level))
     self.params.put_bool("MCSubaruMadsTighterTurnsEnabled", mads_tighter_turns_enabled)
     self.params.put("MCSubaruMadsMaxSteeringAngle", str(mads_max_steering_angle))
+    self.params.put("MCSubaruUnwindRateLevel", str(unwind_rate_level))
     if resume_softness_setting is not None:
       self.params.put("MCSubaruManualYieldResumeSoftness", str(resume_softness_setting))
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
@@ -934,6 +941,67 @@ class TestSubaruCarController(unittest.TestCase):
     target = controller._get_angle_lkas_target(1.2)
 
     self.assertAlmostEqual(target, 1.2)
+
+  def test_subaru_unwind_rate_level_zero_matches_stock_angle_limits(self):
+    controller = self._build_controller(unwind_rate_level=0)
+
+    limits = controller._get_active_angle_limits()
+
+    self.assertIsNot(limits, controller.p.ANGLE_LIMITS)
+    self.assertEqual(limits.STEER_ANGLE_MAX, controller.p.ANGLE_LIMITS.STEER_ANGLE_MAX)
+    self.assertEqual(limits.ANGLE_RATE_LIMIT_UP, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP)
+    self.assertEqual(limits.ANGLE_RATE_LIMIT_DOWN, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN)
+
+  def test_subaru_unwind_rate_level_updates_only_down_limit(self):
+    for level, expected_mid in enumerate(SUBARU_UNWIND_RATE_LEVEL_VALUES):
+      with self.subTest(level=level):
+        controller = self._build_controller(unwind_rate_level=level)
+
+        limits = controller._get_active_angle_limits()
+
+        self.assertEqual(limits.STEER_ANGLE_MAX, controller.p.ANGLE_LIMITS.STEER_ANGLE_MAX)
+        self.assertEqual(limits.ANGLE_RATE_LIMIT_UP, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP)
+        self.assertEqual(limits.ANGLE_RATE_LIMIT_DOWN[0], controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN[0])
+        self.assertEqual(limits.ANGLE_RATE_LIMIT_DOWN[1], [5.0, expected_mid, 0.15])
+
+  def test_subaru_unwind_rate_level_clamps_saved_values(self):
+    below = self._build_controller(unwind_rate_level=-5)
+    above = self._build_controller(unwind_rate_level=99)
+
+    self.assertEqual(below.mc_subaru_unwind_rate_level, SUBARU_UNWIND_RATE_LEVEL_MIN)
+    self.assertEqual(below._get_active_angle_limits().ANGLE_RATE_LIMIT_DOWN[1], [5.0, SUBARU_UNWIND_RATE_LEVEL_VALUES[0], 0.15])
+    self.assertEqual(above.mc_subaru_unwind_rate_level, SUBARU_UNWIND_RATE_LEVEL_MAX)
+    self.assertEqual(above._get_active_angle_limits().ANGLE_RATE_LIMIT_DOWN[1], [5.0, SUBARU_UNWIND_RATE_LEVEL_VALUES[-1], 0.15])
+
+  def test_subaru_unwind_rate_level_increases_only_unwind_delta(self):
+    stock = self._build_controller(unwind_rate_level=0)
+    high = self._build_controller(unwind_rate_level=10)
+    prev_angle = 100.0
+    speed = 5.0
+    measured_angle = 100.0
+
+    stock_unwind = apply_std_steer_angle_limits(0.0, prev_angle, speed, measured_angle, True, stock._get_active_angle_limits())
+    high_unwind = apply_std_steer_angle_limits(0.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits())
+    stock_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, stock._get_active_angle_limits())
+    high_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits())
+
+    self.assertAlmostEqual(stock_unwind, 99.2)
+    self.assertAlmostEqual(high_unwind, 96.0)
+    self.assertAlmostEqual(stock_windup, 100.8)
+    self.assertAlmostEqual(high_windup, stock_windup)
+
+  def test_subaru_unwind_rate_level_keeps_windup_stock_at_every_level(self):
+    base = self._build_controller(unwind_rate_level=0)._get_active_angle_limits()
+    prev_angle = 100.0
+    speed = 5.0
+    measured_angle = 100.0
+    stock_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, base)
+
+    for level in range(SUBARU_UNWIND_RATE_LEVEL_MIN, SUBARU_UNWIND_RATE_LEVEL_MAX + 1):
+      with self.subTest(level=level):
+        controller = self._build_controller(unwind_rate_level=level)
+        windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, controller._get_active_angle_limits())
+        self.assertAlmostEqual(windup, stock_windup)
 
   def test_manual_yield_torque_threshold_only_changes_when_enabled(self):
     disabled = self._build_carstate(torque_threshold_enabled=False, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MAX)

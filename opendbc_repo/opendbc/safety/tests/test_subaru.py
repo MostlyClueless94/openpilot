@@ -225,6 +225,56 @@ class TestSubaruTorqueSafetyBase(TestSubaruSafetyBase, common.DriverTorqueSteeri
     return self.packer.make_can_msg_safety("ES_LKAS", SUBARU_MAIN_BUS, values)
 
 
+class TestSubaruAngleSafety(TestSubaruSafetyBase, common.AngleSteeringSafetyTest):
+  FLAGS = SubaruSafetyFlags.GEN2 | SubaruSafetyFlags.LKAS_ANGLE
+  TX_MSGS = lkas_tx_msgs(SUBARU_ALT_BUS, SubaruMsg.ES_LKAS_ANGLE)
+  RELAY_MALFUNCTION_ADDRS = {SUBARU_MAIN_BUS: (SubaruMsg.ES_LKAS_ANGLE, SubaruMsg.ES_DashStatus,
+                                               SubaruMsg.ES_LKAS_State, SubaruMsg.ES_Infotainment)}
+  FWD_BLACKLISTED_ADDRS = fwd_blacklisted_addr(SubaruMsg.ES_LKAS_ANGLE)
+  ALT_MAIN_BUS = SUBARU_ALT_BUS
+
+  STEER_ANGLE_MAX = 545
+  DEG_TO_CAN = 100
+  ANGLE_RATE_BP = [0., 5., 35.]
+  ANGLE_RATE_UP = [5., .8, .15]
+  ANGLE_RATE_DOWN = [5., 4.0, .15]
+
+  def _angle_cmd_msg(self, angle: float, enabled: bool, increment_timer: bool = True):
+    values = {"LKAS_Output": angle, "LKAS_Request": enabled, "SET_3": 3}
+    return self.packer.make_can_msg_safety("ES_LKAS_ANGLE", SUBARU_MAIN_BUS, values)
+
+  def _angle_meas_msg(self, angle: float):
+    values = {"Steering_Angle": angle}
+    return self.packer.make_can_msg_safety("Steering_2", SUBARU_MAIN_BUS, values)
+
+  def _pcm_status_msg(self, enable):
+    values = {"Cruise_Activated": enable}
+    return self.packer.make_can_msg_safety("ES_Status", SUBARU_ALT_BUS, values)
+
+  def _prime_angle_command(self, speed=5.0, angle=100.0):
+    self._reset_angle_measurement(angle)
+    self._reset_speed_measurement(speed)
+    self._set_prev_desired_angle(angle)
+    self.safety.set_controls_allowed(1)
+
+  def test_angle_lkas_safety_allows_max_test_unwind_delta(self):
+    self._prime_angle_command(speed=5.0, angle=100.0)
+
+    self.assertTrue(self._tx(self._angle_cmd_msg(96.0, True)))
+
+  def test_angle_lkas_safety_rejects_above_max_test_unwind_delta(self):
+    self._prime_angle_command(speed=5.0, angle=100.0)
+
+    self.assertFalse(self._tx(self._angle_cmd_msg(94.0, True)))
+
+  def test_angle_lkas_safety_keeps_windup_table_stock(self):
+    self._prime_angle_command(speed=5.0, angle=100.0)
+    self.assertTrue(self._tx(self._angle_cmd_msg(100.8, True)))
+
+    self._prime_angle_command(speed=5.0, angle=100.0)
+    self.assertFalse(self._tx(self._angle_cmd_msg(103.0, True)))
+
+
 class TestSubaruGen1TorqueStockLongitudinalSafety(TestSubaruStockLongitudinalSafetyBase, TestSubaruTorqueSafetyBase):
   FLAGS = 0
   TX_MSGS = lkas_tx_msgs(SUBARU_MAIN_BUS)

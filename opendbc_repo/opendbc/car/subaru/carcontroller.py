@@ -3,7 +3,7 @@ from openpilot.common.params import Params
 from opendbc.can import CANPacker
 from opendbc.car import Bus, make_tester_present_msg, structs
 from opendbc.car.carlog import carlog
-from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
+from opendbc.car.lateral import AngleSteeringLimits, apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
 from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
@@ -49,6 +49,11 @@ SOFT_CAPTURE_LEVEL_PARAMS = [
   (40, 0.05),  # 4 — strong
   (50, 0.02),  # 5 — max
 ]
+SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)
+SUBARU_UNWIND_RATE_LEVEL_MIN = 0
+SUBARU_UNWIND_RATE_LEVEL_MAX = len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1
+
+
 class CarController(CarControllerBase, SnGCarController):
   def __init__(self, dbc_names, CP, CP_SP):
     CarControllerBase.__init__(self, dbc_names, CP, CP_SP)
@@ -71,6 +76,7 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_soft_capture_level = 3
     self.mc_subaru_mads_tighter_turns_enabled = False
     self.mc_subaru_mads_max_steering_angle = MADS_ONLY_MAX_STEER_ANGLE
+    self.mc_subaru_unwind_rate_level = SUBARU_UNWIND_RATE_LEVEL_MIN
     self.subaru_manual_yield_full_release_active = False
     self.subaru_effective_lkas_active = False
     self.mads_lkas_fault_guard_quiet_frames = 0
@@ -141,6 +147,19 @@ class CarController(CarControllerBase, SnGCarController):
       MADS_ONLY_MAX_STEER_ANGLE,
       MADS_ONLY_MAX_STEER_ANGLE_MAX,
     ))
+
+  def _get_active_angle_limits(self) -> AngleSteeringLimits:
+    base = self.p.ANGLE_LIMITS
+    level = int(np.clip(self.mc_subaru_unwind_rate_level, SUBARU_UNWIND_RATE_LEVEL_MIN, SUBARU_UNWIND_RATE_LEVEL_MAX))
+    level_mid = SUBARU_UNWIND_RATE_LEVEL_VALUES[level]
+    return AngleSteeringLimits(
+      base.STEER_ANGLE_MAX,
+      (list(base.ANGLE_RATE_LIMIT_UP[0]), list(base.ANGLE_RATE_LIMIT_UP[1])),
+      (list(base.ANGLE_RATE_LIMIT_DOWN[0]), [5.0, level_mid, 0.15]),
+      base.MAX_LATERAL_ACCEL,
+      base.MAX_LATERAL_JERK,
+      base.MAX_ANGLE_RATE,
+    )
 
   @staticmethod
   def _get_mads_only_active_steer_angle_cap(selected_cap: float, speed: float) -> float:
@@ -250,6 +269,11 @@ class CarController(CarControllerBase, SnGCarController):
       self._get_int_param("MCSubaruMadsMaxSteeringAngle", int(MADS_ONLY_MAX_STEER_ANGLE)),
       MADS_ONLY_MAX_STEER_ANGLE,
       MADS_ONLY_MAX_STEER_ANGLE_MAX,
+    ))
+    self.mc_subaru_unwind_rate_level = int(np.clip(
+      self._get_int_param("MCSubaruUnwindRateLevel", SUBARU_UNWIND_RATE_LEVEL_MIN),
+      SUBARU_UNWIND_RATE_LEVEL_MIN,
+      SUBARU_UNWIND_RATE_LEVEL_MAX,
     ))
 
   def _reset_angle_driver_override_ramp(self):
@@ -506,7 +530,7 @@ class CarController(CarControllerBase, SnGCarController):
       CS.out.vEgoRaw,
       CS.out.steeringAngleDeg,
       lkas_request,
-      self.p.ANGLE_LIMITS,
+      self._get_active_angle_limits(),
     )
 
     apply_steer_before_mads_cap = apply_steer

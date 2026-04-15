@@ -42,6 +42,10 @@ MADS_STEERING_ANGLE_CAP_DESC = (
   + "to 180 deg; between 8 and 15 mph it ramps up to the selected value. The cap also remains a measured-angle guard. "
   + "545 deg is the existing angle-LKAS safety maximum, not unlimited."
 )
+SUBARU_UNWIND_RATE_DESC = (
+  "Test-only Subaru angle-LKAS return-to-center rate ladder. Level 0 is stock. Higher levels increase only unwind rate; "
+  + "turn-in behavior and the 545 deg angle cap stay unchanged."
+)
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
   + "threshold for your platform while keeping your saved test value. Settings near the minimum may falsely detect manual "
@@ -99,6 +103,8 @@ MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
 MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP = {idx: value for idx, value in enumerate(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)}
 MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)
 MADS_STEERING_ANGLE_CAP_VALUE_MAP = {idx: value for idx, value in enumerate(MADS_STEERING_ANGLE_CAP_VALUES)}
+SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)
+SUBARU_UNWIND_RATE_COMMAND_HZ = 50
 
 
 class MCCustomLayout(Widget):
@@ -234,6 +240,16 @@ class MCCustomLayout(Widget):
       label_callback=self._format_mads_steering_angle_cap_label,
       inline=False,
     )
+    self._subaru_unwind_rate_level = option_item_sp(
+      title=lambda: tr("Unwind Rate Level"),
+      description=lambda: tr(SUBARU_UNWIND_RATE_DESC),
+      param="MCSubaruUnwindRateLevel",
+      min_value=0,
+      max_value=len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1,
+      value_change_step=1,
+      label_callback=self._format_subaru_unwind_rate_label,
+      inline=False,
+    )
     self._subaru_soft_capture = toggle_item_sp(
       title=lambda: tr("Soft-Capture Engage Blend"),
       description=lambda: tr(SOFT_CAPTURE_DESC),
@@ -269,6 +285,7 @@ class MCCustomLayout(Widget):
       self._manual_yield_release_guard_level,
       self._subaru_mads_tighter_turns,
       self._subaru_mads_steering_angle_cap,
+      self._subaru_unwind_rate_level,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
     ]
@@ -318,6 +335,15 @@ class MCCustomLayout(Widget):
     return str(value)
 
   @staticmethod
+  def _format_subaru_unwind_rate_label(value: int) -> str:
+    idx = max(0, min(value, len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1))
+    per_frame = SUBARU_UNWIND_RATE_LEVEL_VALUES[idx]
+    deg_s = int(round(per_frame * SUBARU_UNWIND_RATE_COMMAND_HZ))
+    if idx == 0:
+      return tr(f"Level 0 - Stock ({per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph)")
+    return tr(f"Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph")
+
+  @staticmethod
   def _mads_steering_angle_cap_index(value: int) -> int:
     return min(
       range(len(MADS_STEERING_ANGLE_CAP_VALUES)),
@@ -337,6 +363,7 @@ class MCCustomLayout(Widget):
     self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)
     self._subaru_mads_tighter_turns.set_visible(advanced_tuning_enabled)
     self._subaru_mads_steering_angle_cap.set_visible(advanced_tuning_enabled)
+    self._subaru_unwind_rate_level.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
 
@@ -363,6 +390,10 @@ class MCCustomLayout(Widget):
     self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))
     self._subaru_mads_steering_angle_cap.action_item.current_value = self._mads_steering_angle_cap_index(
       self._get_int_param("MCSubaruMadsMaxSteeringAngle", 120)
+    )
+    self._subaru_unwind_rate_level.action_item.current_value = max(
+      0,
+      min(self._get_int_param("MCSubaruUnwindRateLevel"), len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1),
     )
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)

@@ -24,6 +24,8 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
+SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)
+SUBARU_UNWIND_RATE_COMMAND_HZ = 50
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
@@ -101,6 +103,15 @@ class SubaruLayoutMici(NavScroller):
         self._format_mads_steering_angle_cap_label,
       )
     )
+    self._subaru_unwind_rate_level_btn = BigButton("unwind rate\nlevel")
+    self._subaru_unwind_rate_level_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._subaru_unwind_rate_level_btn,
+        "MCSubaruUnwindRateLevel",
+        list(range(len(SUBARU_UNWIND_RATE_LEVEL_VALUES))),
+        self._format_subaru_unwind_rate_label,
+      )
+    )
     self._subaru_soft_capture_strength_btn = BigButton("soft-capture\nstrength")
     self._subaru_soft_capture_strength_btn.set_click_callback(
       lambda: self._show_value_selector(
@@ -127,6 +138,7 @@ class SubaruLayoutMici(NavScroller):
       self._manual_yield_release_guard_btn,
       self._subaru_mads_tighter_turns_toggle,
       self._subaru_mads_steering_angle_cap_btn,
+      self._subaru_unwind_rate_level_btn,
       self._subaru_soft_capture_toggle,
       self._subaru_soft_capture_strength_btn,
     ]
@@ -205,6 +217,15 @@ class SubaruLayoutMici(NavScroller):
     return str(value)
 
   @staticmethod
+  def _format_subaru_unwind_rate_label(value: int) -> str:
+    idx = max(0, min(value, len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1))
+    per_frame = SUBARU_UNWIND_RATE_LEVEL_VALUES[idx]
+    deg_s = int(round(per_frame * SUBARU_UNWIND_RATE_COMMAND_HZ))
+    if idx == 0:
+      return f"Level 0 - Stock ({per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph)"
+    return f"Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph"
+
+  @staticmethod
   def _clamp_mads_steering_angle_cap(value: int) -> int:
     return max(MADS_STEERING_ANGLE_CAP_VALUES[0], min(value, MADS_STEERING_ANGLE_CAP_VALUES[-1]))
 
@@ -218,6 +239,7 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_release_guard_btn.set_visible(enabled)
     self._subaru_mads_tighter_turns_toggle.set_visible(enabled)
     self._subaru_mads_steering_angle_cap_btn.set_visible(enabled)
+    self._subaru_unwind_rate_level_btn.set_visible(enabled)
     self._subaru_soft_capture_toggle.set_visible(enabled)
     self._subaru_soft_capture_strength_btn.set_visible(enabled)
 
@@ -295,6 +317,11 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_mads_steering_angle_cap_btn.set_value(
       self._format_mads_steering_angle_cap_label(
         self._clamp_mads_steering_angle_cap(self._get_int_param("MCSubaruMadsMaxSteeringAngle", 120))
+      )
+    )
+    self._subaru_unwind_rate_level_btn.set_value(
+      self._format_subaru_unwind_rate_label(
+        max(0, min(self._get_int_param("MCSubaruUnwindRateLevel"), len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1))
       )
     )
     self._subaru_soft_capture_strength_btn.set_value(

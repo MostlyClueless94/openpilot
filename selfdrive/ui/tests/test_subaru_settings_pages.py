@@ -75,7 +75,9 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
   assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
   assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
+  assert 'param="MCSubaruUnwindRateLevel"' in source
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
+  assert "SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)" in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
   assert "*range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50)" in source
   assert "value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP" in source
@@ -87,9 +89,12 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert '"Release Guard Strength"' in source
   assert '"Tighter MADS Turns"' in source
   assert '"MADS Steering Angle Cap"' in source
+  assert '"Unwind Rate Level"' in source
+  assert "Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph" in source
   assert 'requested steering angle' in source
   assert 'measured-angle guard' in source
   assert 'low-speed fault protection' in source
+  assert 'turn-in behavior and the 545 deg angle cap stay unchanged' in source
   assert 'Full Manual Yield Release' not in source
   assert 'MCSubaruManualYieldFullReleaseEnabled' not in source
 
@@ -133,6 +138,11 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigParamControl("tighter MADS\\nturns", "MCSubaruMadsTighterTurnsEnabled")' in source
   assert 'BigButton("MADS steering\\nangle cap")' in source
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
+  assert 'BigButton("unwind rate\\nlevel")' in source
+  assert '"MCSubaruUnwindRateLevel"' in source
+  assert "SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)" in source
+  assert "list(range(len(SUBARU_UNWIND_RATE_LEVEL_VALUES)))" in source
+  assert "Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph" in source
   assert 'BigParamControl("soft-capture\\nengage blend", "MCSubaruSoftCaptureEnabled")' in source
   assert 'BigButton("soft-capture\\nstrength")' in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
@@ -205,12 +215,14 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   assert 'self._manual_yield_release_guard_btn.set_visible(enabled)' in source
   assert 'self._subaru_mads_tighter_turns_toggle.set_visible(enabled)' in source
   assert 'self._subaru_mads_steering_angle_cap_btn.set_visible(enabled)' in source
+  assert 'self._subaru_unwind_rate_level_btn.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_toggle.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_strength_btn.set_visible(enabled)' in source
   assert 'self._format_manual_yield_torque_threshold_label(' in source
   assert 'self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6)))' in source
   assert 'self._format_release_guard_label(max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3)))' in source
   assert 'self._format_mads_steering_angle_cap_label(' in source
+  assert 'self._format_subaru_unwind_rate_label(' in source
   assert 'self._format_soft_capture_label(max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5)))' in source
   assert "smoothing_enabled" not in source
   assert "resume_speed_enabled" not in source
@@ -232,6 +244,7 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
   assert '{"MCSubaruMadsTighterTurnsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "120"}}' in params_source
+  assert '{"MCSubaruUnwindRateLevel", {PERSISTENT | BACKUP, INT, "0"}}' in params_source
   assert '{"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in params_source
   assert '{"Subaru11BluePilotTuningMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}}' in params_source
@@ -252,10 +265,15 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"MCSubaruManualYieldReleaseGuardLevel"' in metadata_source
   assert '"MCSubaruMadsTighterTurnsEnabled"' in metadata_source
   assert '"MCSubaruMadsMaxSteeringAngle"' in metadata_source
+  assert '"MCSubaruUnwindRateLevel"' in metadata_source
   assert 'requested steering angle' in metadata_source
   assert 'measured-angle guard' in metadata_source
   assert 'low-speed fault protection' in metadata_source
   assert 'Below 8 mph' in metadata_source
+  assert 'low-speed LKAS fault threshold' in metadata_source
+  assert '"label": "Level 0 - Stock (0.8/frame, 40 deg/s @ 11 mph)"' in metadata_source
+  assert '"label": "Level 6 - 2.4/frame, 120 deg/s @ 11 mph"' in metadata_source
+  assert '"label": "Level 10 - 4.0/frame, 200 deg/s @ 11 mph"' in metadata_source
   assert '"MCSubaruSoftCaptureEnabled"' in metadata_source
   assert '"MCSubaruSoftCaptureLevel"' in metadata_source
   assert '"label": "40 - Caution"' in metadata_source
