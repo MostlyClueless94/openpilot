@@ -159,6 +159,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}},
     {"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MCSubaruManualYieldFullReleaseEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}},
     {"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},

@@ -59,10 +59,13 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_manual_yield_resume_softness = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
     self.mc_subaru_manual_yield_release_guard_enabled = False
     self.mc_subaru_manual_yield_release_guard_level = ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT
+    self.mc_subaru_manual_yield_full_release_enabled = True
     self.mc_subaru_soft_capture_enabled = False
     self.mc_subaru_soft_capture_level = 3
     self.mc_subaru_mads_tighter_turns_enabled = False
     self.mc_subaru_mads_max_steering_angle = MADS_ONLY_MAX_STEER_ANGLE
+    self.subaru_manual_yield_full_release_active = False
+    self.subaru_effective_lkas_active = False
     self.angle_driver_override_hold_frames = 0
     self.angle_driver_override_ramp_frames = 0
     self.angle_driver_override_ramp_total_frames = ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES
@@ -180,6 +183,7 @@ class CarController(CarControllerBase, SnGCarController):
       ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN,
       ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX,
     ))
+    self.mc_subaru_manual_yield_full_release_enabled = self._get_bool_param("MCSubaruManualYieldFullReleaseEnabled", True)
     self.mc_subaru_soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self.mc_subaru_soft_capture_level = int(np.clip(
       self._get_int_param("MCSubaruSoftCaptureLevel", 3),
@@ -318,6 +322,10 @@ class CarController(CarControllerBase, SnGCarController):
       CS.out.steeringRateDeg,
     )
     lkas_request = lkas_allowed and not angle_driver_override
+    self.subaru_manual_yield_full_release_active = (
+      self.mc_subaru_manual_yield_full_release_enabled and angle_driver_override
+    )
+    self.subaru_effective_lkas_active = CC.latActive and not self.subaru_manual_yield_full_release_active
 
     inhibit_reason = "none"
     if not CC.latActive:
@@ -364,6 +372,7 @@ class CarController(CarControllerBase, SnGCarController):
       manual_override_ramp_active = False
 
     handoff_active = angle_driver_override or ramp_will_start or manual_override_ramp_active
+    effective_lkas_recapture_active = CC.latActive and not self.subaru_manual_yield_full_release_active
 
     self._log_transition(
       "angle_driver_override_ramp",
@@ -377,9 +386,19 @@ class CarController(CarControllerBase, SnGCarController):
       ),
     )
 
-    if CC.latActive and not self.lat_active_prev and lkas_request:
+    self._log_transition(
+      "angle_manual_yield_full_release",
+      self.subaru_manual_yield_full_release_active,
+      (
+        f"angle manual yield full release active={self.subaru_manual_yield_full_release_active} "
+        + f"enabled={self.mc_subaru_manual_yield_full_release_enabled} "
+        + f"manualYieldActive={angle_driver_override} effectiveLkasState={self.subaru_effective_lkas_active}"
+      ),
+    )
+
+    if effective_lkas_recapture_active and not self.lat_active_prev and lkas_request:
       self.soft_capture_frame = self.frame
-    self.lat_active_prev = CC.latActive
+    self.lat_active_prev = effective_lkas_recapture_active
 
     if lkas_request:
       steer_target = self._get_soft_capture_angle(steer_target, CS.out.steeringAngleDeg)
@@ -434,6 +453,8 @@ class CarController(CarControllerBase, SnGCarController):
         + f"madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f} "
         + f"madsCapClamped={mads_cap_clamped} measuredRate={CS.out.steeringRateDeg:.2f} "
         + f"handoffActive={handoff_active} rampActive={manual_override_ramp_active} "
+        + f"manualYieldActive={angle_driver_override} fullReleaseEnabled={self.mc_subaru_manual_yield_full_release_enabled} "
+        + f"fullReleaseActive={self.subaru_manual_yield_full_release_active} effectiveLkasState={self.subaru_effective_lkas_active} "
         + f"latActive={CC.latActive} enabled={CC.enabled}"
       ),
     )
@@ -524,10 +545,14 @@ class CarController(CarControllerBase, SnGCarController):
 
     else:
       if self.frame % 10 == 0:
+        subaru_lkas_state_active = CC.latActive
+        if self.CP.flags & SubaruFlags.LKAS_ANGLE:
+          subaru_lkas_state_active = self.subaru_effective_lkas_active
+
         can_sends.append(subarucan.create_es_dashstatus(self.packer, self.frame // 10, CS.es_dashstatus_msg, CC.enabled,
                                                         self.CP.openpilotLongitudinalControl, CC.longActive, hud_control.leadVisible))
 
-        can_sends.append(subarucan.create_es_lkas_state(self.packer, self.frame // 10, CS.es_lkas_state_msg, CC.latActive, hud_control.visualAlert,
+        can_sends.append(subarucan.create_es_lkas_state(self.packer, self.frame // 10, CS.es_lkas_state_msg, subaru_lkas_state_active, hud_control.visualAlert,
                                                         hud_control.leftLaneVisible, hud_control.rightLaneVisible,
                                                         hud_control.leftLaneDepart, hud_control.rightLaneDepart))
 

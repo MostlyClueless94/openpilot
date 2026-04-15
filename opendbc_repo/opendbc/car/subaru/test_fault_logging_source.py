@@ -53,7 +53,13 @@ def test_carcontroller_logs_neutral_angle_driver_override_state():
   assert 'MCSubaruManualYieldResumeSoftness' in source
   assert 'MCSubaruManualYieldReleaseGuardEnabled' in source
   assert 'MCSubaruManualYieldReleaseGuardLevel' in source
+  assert 'MCSubaruManualYieldFullReleaseEnabled' in source
   assert 'angle driver override release guard active={self.angle_driver_override_release_guard_pending}' in source
+  assert 'angle manual yield full release active={self.subaru_manual_yield_full_release_active}' in source
+  assert 'fullReleaseEnabled={self.mc_subaru_manual_yield_full_release_enabled}' in source
+  assert 'fullReleaseActive={self.subaru_manual_yield_full_release_active}' in source
+  assert 'effectiveLkasState={self.subaru_effective_lkas_active}' in source
+  assert 'subaru_lkas_state_active = self.subaru_effective_lkas_active' in source
   assert 'totalFrames={self.angle_driver_override_ramp_total_frames}' in source
   assert 'softnessExponent={self.angle_driver_override_ramp_softness_exponent:.2f}' in source
   assert 'MADS manual override hold active=' not in source
@@ -88,6 +94,8 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   assert "MCSubaruManualYieldTorqueThreshold" not in ford_carstate_source
   assert "MCSubaruManualYieldFilteredDetection" not in ford_controller_source
   assert "MCSubaruManualYieldFilteredDetection" not in ford_carstate_source
+  assert "MCSubaruManualYieldFullRelease" not in ford_controller_source
+  assert "MCSubaruManualYieldFullRelease" not in ford_carstate_source
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_controller_source
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_carstate_source
   assert "MCSubaruSoftCapture" not in ford_controller_source

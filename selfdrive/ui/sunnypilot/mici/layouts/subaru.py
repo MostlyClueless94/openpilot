@@ -58,6 +58,7 @@ class SubaruLayoutMici(NavScroller):
     self._subaru_advanced_tuning_toggle = BigParamControl("advanced\ntuning", "MCSubaruAdvancedTuning")
     self._manual_yield_torque_threshold_toggle = BigParamControl("custom yield\ntorque", "MCSubaruManualYieldTorqueThresholdEnabled")
     self._manual_yield_filtered_detection_toggle = BigParamControl("filtered yield\ndetection", "MCSubaruManualYieldFilteredDetectionEnabled")
+    self._manual_yield_full_release_toggle = BigParamControl("full manual\nyield release", "MCSubaruManualYieldFullReleaseEnabled")
     self._manual_yield_resume_softness_toggle = BigParamControl("custom resume\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")
     self._manual_yield_release_guard_toggle = BigParamControl("manual yield\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")
     self._subaru_mads_tighter_turns_toggle = BigParamControl("tighter MADS\nturns", "MCSubaruMadsTighterTurnsEnabled")
@@ -121,6 +122,7 @@ class SubaruLayoutMici(NavScroller):
       self._manual_yield_torque_threshold_toggle,
       self._manual_yield_torque_threshold_btn,
       self._manual_yield_filtered_detection_toggle,
+      self._manual_yield_full_release_toggle,
       self._manual_yield_resume_softness_toggle,
       self._manual_yield_resume_softness_btn,
       self._manual_yield_release_guard_toggle,
@@ -139,6 +141,7 @@ class SubaruLayoutMici(NavScroller):
       ("MCSubaruAdvancedTuning", self._subaru_advanced_tuning_toggle, False),
       ("MCSubaruManualYieldTorqueThresholdEnabled", self._manual_yield_torque_threshold_toggle, False),
       ("MCSubaruManualYieldFilteredDetectionEnabled", self._manual_yield_filtered_detection_toggle, False),
+      ("MCSubaruManualYieldFullReleaseEnabled", self._manual_yield_full_release_toggle, True),
       ("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, False),
       ("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False),
       ("MCSubaruMadsTighterTurnsEnabled", self._subaru_mads_tighter_turns_toggle, False),
@@ -212,6 +215,7 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_torque_threshold_toggle.set_visible(enabled)
     self._manual_yield_torque_threshold_btn.set_visible(enabled)
     self._manual_yield_filtered_detection_toggle.set_visible(enabled)
+    self._manual_yield_full_release_toggle.set_visible(enabled)
     self._manual_yield_resume_softness_toggle.set_visible(enabled)
     self._manual_yield_resume_softness_btn.set_visible(enabled)
     self._manual_yield_release_guard_toggle.set_visible(enabled)

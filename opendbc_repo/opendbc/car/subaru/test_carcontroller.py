@@ -40,6 +40,7 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldTorqueThresholdEnabled",
     "MCSubaruManualYieldTorqueThreshold",
     "MCSubaruManualYieldFilteredDetectionEnabled",
+    "MCSubaruManualYieldFullReleaseEnabled",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
     "MCSubaruMadsTighterTurnsEnabled",
@@ -77,11 +78,13 @@ class TestSubaruCarController(unittest.TestCase):
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
                         resume_softness_enabled=False, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2,
+                        manual_yield_full_release_enabled=True,
                         mads_tighter_turns_enabled=False, mads_max_steering_angle=120):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
     self.params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", release_guard_enabled)
+    self.params.put_bool("MCSubaruManualYieldFullReleaseEnabled", manual_yield_full_release_enabled)
     self.params.put("MCSubaruManualYieldReleaseGuardLevel", str(release_guard_level))
     self.params.put_bool("MCSubaruMadsTighterTurnsEnabled", mads_tighter_turns_enabled)
     self.params.put("MCSubaruMadsMaxSteeringAngle", str(mads_max_steering_angle))
@@ -336,6 +339,60 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertFalse(controller.angle_driver_override_release_guard_pending)
     self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
     self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
+
+  def test_angle_driver_override_full_release_reports_lkas_inactive_when_enabled(self):
+    controller = self._build_controller(
+      release_guard_enabled=True,
+      manual_yield_full_release_enabled=True,
+    )
+    cc = self._build_cc(True, False, 14.0)
+    cs = self._build_cs(8.0, 10.0, steering_pressed=True)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertTrue(controller.subaru_manual_yield_full_release_active)
+    self.assertFalse(controller.subaru_effective_lkas_active)
+    self.assertTrue(cc.latActive)
+
+  def test_angle_driver_override_full_release_toggle_off_preserves_lkas_state(self):
+    controller = self._build_controller(
+      release_guard_enabled=True,
+      manual_yield_full_release_enabled=False,
+    )
+    cc = self._build_cc(True, False, 14.0)
+    cs = self._build_cs(8.0, 10.0, steering_pressed=True)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertFalse(controller.subaru_manual_yield_full_release_active)
+    self.assertTrue(controller.subaru_effective_lkas_active)
+
+  def test_angle_driver_override_full_release_exit_can_start_soft_capture_recapture(self):
+    controller = self._build_controller(
+      release_guard_enabled=True,
+      resume_softness_enabled=False,
+      manual_yield_full_release_enabled=True,
+      soft_capture_enabled=True,
+      soft_capture_level=2,
+    )
+    cc = self._build_cc(True, False, 14.0)
+    released_cs = self._prime_angle_driver_override_release_guard(controller, cc, use_current_profile=True)
+
+    self.assertTrue(controller.subaru_manual_yield_full_release_active)
+    self.assertFalse(controller.subaru_effective_lkas_active)
+
+    for _ in range(ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS[1]):
+      controller.handle_angle_lateral(cc, released_cs)
+
+    self.assertFalse(controller.subaru_manual_yield_full_release_active)
+    self.assertTrue(controller.subaru_effective_lkas_active)
+    self.assertEqual(controller.soft_capture_frame, controller.frame)
 
   def test_angle_driver_override_release_guard_cancels_when_driver_input_returns(self):
     controller = self._build_controller(release_guard_enabled=True, release_guard_level=2)
