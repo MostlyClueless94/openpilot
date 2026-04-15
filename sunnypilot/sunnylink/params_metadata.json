@@ -325,6 +325,10 @@
     "max": 500,
     "step": 5
   },
+  "MCSubaruManualYieldFilteredDetectionEnabled": {
+    "title": "Filtered Yield Detection",
+    "description": "Use Ford-style filtering for Subaru manual-yield detection so light hand torque can stay latched through brief torque dropouts. This keeps the selected torque threshold, but requires persistent input before latching."
+  },
   "MCSubaruManualYieldResumeSoftnessEnabled": {
     "title": "Custom Resume Softness",
     "description": "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied and your saved softness selection is kept for later testing."

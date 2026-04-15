@@ -33,6 +33,8 @@ def test_mc_custom_hosts_simplified_subaru_controls_at_the_end_of_the_page():
   assert 'param="MCSubaruAdvancedTuning"' in source
   assert 'param="MCSubaruManualYieldTorqueThresholdEnabled"' in source
   assert 'param="MCSubaruManualYieldTorqueThreshold"' in source
+  assert 'param="MCSubaruManualYieldFilteredDetectionEnabled"' in source
+  assert '"Filtered Yield Detection"' in source
   assert 'param="MCSubaruManualYieldResumeSoftnessEnabled"' in source
   assert 'param="MCSubaruManualYieldResumeSoftness"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardEnabled"' in source
@@ -65,6 +67,7 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._manual_yield_filtered_detection.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)' in source
@@ -81,6 +84,7 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'def _on_subaru_toggle_changed(self, _):' not in source
   assert 'self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)' in source
+  assert 'self._manual_yield_filtered_detection.action_item.set_state(filtered_detection_enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)' in source
   assert 'self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)' in source
@@ -105,6 +109,7 @@ def test_params_keys_register_simplified_subaru_tuning_defaults_for_mc_custom_me
   assert '{"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
   assert '{"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in source
+  assert '{"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in source
   assert '{"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
@@ -130,6 +135,10 @@ def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
   assert '"title": "Custom Yield Torque"' in source
   assert '"MCSubaruManualYieldTorqueThreshold"' in source
   assert '"title": "Manual Yield Torque Threshold"' in source
+  assert '"MCSubaruManualYieldFilteredDetectionEnabled"' in source
+  assert '"title": "Filtered Yield Detection"' in source
+  assert 'Ford-style filtering for Subaru manual-yield detection' in source
+  assert 'light hand torque can stay latched through brief torque dropouts' in source
   assert '"label": "40 - Caution"' in source
   assert '"label": "80 - Stock"' in source
   assert '"label": "150"' in source

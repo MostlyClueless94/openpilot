@@ -54,6 +54,10 @@ YIELD_TORQUE_DESC = (
   + "torque and may be slower to detect manual override. Values above 150 are high experimental test points and may "
   + "effectively disable manual-yield detection. 40 is the minimum allowed test value."
 )
+FILTERED_YIELD_DETECTION_DESC = (
+  "Use Ford-style filtering for Subaru manual-yield detection so light hand torque can stay latched through brief "
+  + "dropouts. This keeps the selected torque threshold, but requires persistent input before latching."
+)
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
   + "When enabled, the wheel angle blends gradually toward the model target "
@@ -173,6 +177,12 @@ class MCCustomLayout(Widget):
       label_callback=self._format_manual_yield_torque_threshold_label,
       inline=False,
     )
+    self._manual_yield_filtered_detection = toggle_item_sp(
+      title=lambda: tr("Filtered Yield Detection"),
+      description=lambda: tr(FILTERED_YIELD_DETECTION_DESC),
+      param="MCSubaruManualYieldFilteredDetectionEnabled",
+      initial_state=self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled"),
+    )
     self._manual_yield_resume_softness_enabled = toggle_item_sp(
       title=lambda: tr("Custom Resume Softness"),
       description=lambda: tr(CUSTOM_RESUME_SOFTNESS_DESC),
@@ -250,6 +260,7 @@ class MCCustomLayout(Widget):
       self._subaru_advanced_tuning,
       self._manual_yield_torque_threshold_enabled,
       self._manual_yield_torque_threshold,
+      self._manual_yield_filtered_detection,
       self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
       self._manual_yield_release_guard_enabled,
@@ -317,6 +328,7 @@ class MCCustomLayout(Widget):
     self._subaru_advanced_tuning.set_visible(True)
     self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)
+    self._manual_yield_filtered_detection.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)
@@ -329,6 +341,7 @@ class MCCustomLayout(Widget):
   def _update_subaru_settings(self) -> None:
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
+    filtered_detection_enabled = self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled")
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled")
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
     mads_tighter_turns_enabled = self._get_bool_param("MCSubaruMadsTighterTurnsEnabled")
@@ -337,6 +350,7 @@ class MCCustomLayout(Widget):
     )
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
     self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)
+    self._manual_yield_filtered_detection.action_item.set_state(filtered_detection_enabled)
     self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
     self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)
     self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)

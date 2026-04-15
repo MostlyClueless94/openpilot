@@ -19,6 +19,7 @@ MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
 MANUAL_YIELD_TORQUE_THRESHOLD_MAX = 500
 MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT = 80
 MANUAL_YIELD_TORQUE_THRESHOLD_REFRESH_FRAMES = 100
+MANUAL_YIELD_FILTERED_DETECTION_FRAMES = 5
 MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
   *range(MANUAL_YIELD_TORQUE_THRESHOLD_MIN, MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX + MANUAL_YIELD_TORQUE_THRESHOLD_STEP, MANUAL_YIELD_TORQUE_THRESHOLD_STEP),
   *range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50),
@@ -40,6 +41,7 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     self.frame = 0
     self.mc_subaru_manual_yield_torque_threshold_enabled = False
     self.mc_subaru_manual_yield_torque_threshold = MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT
+    self.mc_subaru_manual_yield_filtered_detection_enabled = False
     self._update_params()
 
   def _log_transition(self, key, value, message):
@@ -82,11 +84,22 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
 
     return self.mc_subaru_manual_yield_torque_threshold
 
+  def _get_manual_yield_steering_pressed(self, steering_torque: float) -> bool:
+    threshold_exceeded = abs(steering_torque) > self._get_active_manual_yield_torque_threshold()
+    if not self.mc_subaru_manual_yield_filtered_detection_enabled:
+      return threshold_exceeded
+
+    return self.update_steering_pressed(threshold_exceeded, MANUAL_YIELD_FILTERED_DETECTION_FRAMES)
+
   def _update_params(self) -> None:
     self.mc_subaru_manual_yield_torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
     self.mc_subaru_manual_yield_torque_threshold = self._clamp_manual_yield_torque_threshold(
       self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT)
     )
+    filtered_detection_enabled = self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled")
+    if filtered_detection_enabled != self.mc_subaru_manual_yield_filtered_detection_enabled:
+      self.steering_pressed_cnt = 0
+    self.mc_subaru_manual_yield_filtered_detection_enabled = filtered_detection_enabled
 
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
     self.frame += 1
@@ -156,12 +169,18 @@ class CarState(CarStateBase, MadsCarState, SnGCarState):
     ret.steeringTorqueEps = cp.vl["Steering_Torque"]["Steer_Torque_Output"]
 
     steer_threshold = self._get_active_manual_yield_torque_threshold()
-    ret.steeringPressed = abs(ret.steeringTorque) > steer_threshold
+    ret.steeringPressed = self._get_manual_yield_steering_pressed(ret.steeringTorque)
     self._log_transition(
       "manual_yield_torque_threshold",
-      (self.mc_subaru_manual_yield_torque_threshold_enabled, steer_threshold, self.mc_subaru_manual_yield_torque_threshold),
+      (
+        self.mc_subaru_manual_yield_torque_threshold_enabled,
+        self.mc_subaru_manual_yield_filtered_detection_enabled,
+        steer_threshold,
+        self.mc_subaru_manual_yield_torque_threshold,
+      ),
       f"manual yield torque threshold active={steer_threshold} "
       f"customEnabled={self.mc_subaru_manual_yield_torque_threshold_enabled} "
+      f"filteredEnabled={self.mc_subaru_manual_yield_filtered_detection_enabled} "
       f"stored={self.mc_subaru_manual_yield_torque_threshold} "
       f"stock={self._get_stock_manual_yield_torque_threshold()}",
     )

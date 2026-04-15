@@ -28,13 +28,16 @@ def test_carstate_logs_active_manual_yield_torque_threshold():
   source = _read(CARSTATE)
   assert 'MCSubaruManualYieldTorqueThresholdEnabled' in source
   assert 'MCSubaruManualYieldTorqueThreshold' in source
+  assert 'MCSubaruManualYieldFilteredDetectionEnabled' in source
   assert 'manual yield torque threshold active={steer_threshold}' in source
   assert 'customEnabled={self.mc_subaru_manual_yield_torque_threshold_enabled}' in source
+  assert 'filteredEnabled={self.mc_subaru_manual_yield_filtered_detection_enabled}' in source
 
 
 def test_carcontroller_request_logs_include_target_and_handoff_context():
   source = _read(CARCONTROLLER)
-  assert 'angle LKAS request={lkas_request} inhibit={inhibit_reason} target={steer_target:.2f}' in source
+  assert 'angle LKAS request={lkas_request} inhibit={inhibit_reason} rawTarget={raw_steer_target:.2f}' in source
+  assert 'target={steer_target:.2f}' in source
   assert 'lastApplied={self.apply_angle_last:.2f}' in source
   assert 'measuredAngle={CS.out.steeringAngleDeg:.2f}' in source
   assert 'madsOnly={mads_only} madsAngleCap={mads_only_max_steer_angle:.2f}' in source
@@ -83,6 +86,8 @@ def test_ford_files_remain_free_of_subaru_release_guard_references():
   assert "MCSubaruManualYieldReleaseGuard" not in ford_carstate_source
   assert "MCSubaruManualYieldTorqueThreshold" not in ford_controller_source
   assert "MCSubaruManualYieldTorqueThreshold" not in ford_carstate_source
+  assert "MCSubaruManualYieldFilteredDetection" not in ford_controller_source
+  assert "MCSubaruManualYieldFilteredDetection" not in ford_carstate_source
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_controller_source
   assert "MCSubaruMatchVehicleSpeedometer" not in ford_carstate_source
   assert "MCSubaruSoftCapture" not in ford_controller_source

@@ -39,6 +39,7 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldReleaseGuardLevel",
     "MCSubaruManualYieldTorqueThresholdEnabled",
     "MCSubaruManualYieldTorqueThreshold",
+    "MCSubaruManualYieldFilteredDetectionEnabled",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
     "MCSubaruMadsTighterTurnsEnabled",

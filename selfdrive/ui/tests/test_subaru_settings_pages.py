@@ -70,6 +70,7 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'param="MCSubaruAdvancedTuning"' in source
   assert 'param="MCSubaruManualYieldTorqueThresholdEnabled"' in source
   assert 'param="MCSubaruManualYieldTorqueThreshold"' in source
+  assert 'param="MCSubaruManualYieldFilteredDetectionEnabled"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardEnabled"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
   assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
@@ -81,6 +82,7 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert "def _manual_yield_torque_threshold_index(value: int) -> int:" in source
   assert '"Custom Yield Torque"' in source
   assert '"Manual Yield Torque Threshold"' in source
+  assert '"Filtered Yield Detection"' in source
   assert '"Manual Yield Release Guard"' in source
   assert '"Release Guard Strength"' in source
   assert '"Tighter MADS Turns"' in source
@@ -120,6 +122,7 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigParamControl("advanced\\ntuning", "MCSubaruAdvancedTuning")' in source
   assert 'BigParamControl("custom yield\\ntorque", "MCSubaruManualYieldTorqueThresholdEnabled")' in source
   assert 'BigButton("manual yield\\ntorque")' in source
+  assert 'BigParamControl("filtered yield\\ndetection", "MCSubaruManualYieldFilteredDetectionEnabled")' in source
   assert 'BigParamControl("custom resume\\nsoftness", "MCSubaruManualYieldResumeSoftnessEnabled")' in source
   assert 'BigButton("manual yield\\nresume softness")' in source
   assert 'BigParamControl("manual yield\\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")' in source
@@ -179,6 +182,7 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   assert "self._set_advanced_tuning_visibility(advanced_tuning_enabled)" in source
   assert '("MCSubaruMatchVehicleSpeedometer", self._match_vehicle_speedometer_toggle, True)' in source
   assert '("MCSubaruManualYieldTorqueThresholdEnabled", self._manual_yield_torque_threshold_toggle, False)' in source
+  assert '("MCSubaruManualYieldFilteredDetectionEnabled", self._manual_yield_filtered_detection_toggle, False)' in source
   assert '("MCSubaruManualYieldResumeSoftnessEnabled", self._manual_yield_resume_softness_toggle, False)' in source
   assert '("MCSubaruManualYieldReleaseGuardEnabled", self._manual_yield_release_guard_toggle, False)' in source
   assert '("MCSubaruMadsTighterTurnsEnabled", self._subaru_mads_tighter_turns_toggle, False)' in source
@@ -190,6 +194,7 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   assert 'self._subaru_soft_capture_strength_btn.set_enabled(soft_capture_enabled)' in source
   assert 'self._manual_yield_torque_threshold_toggle.set_visible(enabled)' in source
   assert 'self._manual_yield_torque_threshold_btn.set_visible(enabled)' in source
+  assert 'self._manual_yield_filtered_detection_toggle.set_visible(enabled)' in source
   assert 'self._manual_yield_resume_softness_toggle.set_visible(enabled)' in source
   assert 'self._manual_yield_resume_softness_btn.set_visible(enabled)' in source
   assert 'self._manual_yield_release_guard_toggle.set_visible(enabled)' in source
@@ -215,6 +220,7 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '{"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in params_source
+  assert '{"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '{"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
@@ -229,6 +235,9 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"MCSubaruMatchVehicleSpeedometer"' in metadata_source
   assert '"MCSubaruManualYieldTorqueThresholdEnabled"' in metadata_source
   assert '"MCSubaruManualYieldTorqueThreshold"' in metadata_source
+  assert '"MCSubaruManualYieldFilteredDetectionEnabled"' in metadata_source
+  assert '"title": "Filtered Yield Detection"' in metadata_source
+  assert 'Ford-style filtering for Subaru manual-yield detection' in metadata_source
   assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in metadata_source
   assert '"MCSubaruManualYieldResumeSoftness"' in metadata_source
   assert '"MCSubaruManualYieldReleaseGuardEnabled"' in metadata_source
