@@ -88,6 +88,17 @@ def is_stock_model(started, params, CP: car.CarParams) -> bool:
   """Check if the active model runner is stock."""
   return bool(get_active_model_runner(params, not started) == custom.ModelManagerSP.Runner.stock)
 
+# BluePilot: gate model startup until per-vehicle profile restore completes
+def vehicle_profile_ready(started, params, CP: car.CarParams) -> bool:
+  return bool(started and params.get_bool("BPVehicleProfileReady"))
+
+def is_tinygrad_model_ready(started, params, CP: car.CarParams) -> bool:
+  return bool(vehicle_profile_ready(started, params, CP) and is_tinygrad_model(started, params, CP))
+
+def is_stock_model_ready(started, params, CP: car.CarParams) -> bool:
+  return bool(vehicle_profile_ready(started, params, CP) and is_stock_model(started, params, CP))
+# End BluePilot
+
 def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
   return bool(os.path.exists(Paths.mapd_root()))
 
@@ -126,7 +137,9 @@ procs = [
   PythonProcess("micd", "system.micd", iscar),
   PythonProcess("timed", "system.timed", always_run, enabled=not PC),
 
-  PythonProcess("modeld", "selfdrive.modeld.modeld", and_(only_onroad, is_stock_model)),
+  # BluePilot: wait for vehicle profile restore before loading the driving model
+  PythonProcess("modeld", "selfdrive.modeld.modeld", is_stock_model_ready),
+  # End BluePilot
   PythonProcess("dmonitoringmodeld", "selfdrive.modeld.dmonitoringmodeld", driverview, enabled=(WEBCAM or not PC)),
 
   PythonProcess("sensord", "system.sensord.sensord", only_onroad, enabled=not PC),
@@ -174,7 +187,9 @@ procs = [
 procs += [
   # Models
   PythonProcess("models_manager", "sunnypilot.models.manager", only_offroad),
-  NativeProcess("modeld_tinygrad", "sunnypilot/modeld_v2", ["./modeld"], and_(only_onroad, is_tinygrad_model)),
+  # BluePilot: wait for vehicle profile restore before loading the driving model
+  NativeProcess("modeld_tinygrad", "sunnypilot/modeld_v2", ["./modeld"], is_tinygrad_model_ready),
+  # End BluePilot
 
   # Backup
   PythonProcess("backup_manager", "sunnypilot.sunnylink.backups.manager", and_(only_offroad, sunnylink_ready_shim)),

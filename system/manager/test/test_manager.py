@@ -38,6 +38,21 @@ class TestManager:
     # TODO: ensure there are blacklisted procs until we have a dedicated test
     assert len(BLACKLIST_PROCS), "No blacklisted procs to test not_run"
 
+  def test_modeld_waits_for_vehicle_profile_ready(self):
+    params = Params()
+    params.clear_all()
+    CP = car.CarParams.new_message()
+
+    params.remove("BPVehicleProfileReady")
+    params.remove("ModelManager_ActiveBundle")
+    params.remove("ModelRunnerTypeCache")
+
+    assert not managed_processes["modeld"].should_run(True, params, CP)
+    assert not managed_processes["modeld_tinygrad"].should_run(True, params, CP)
+
+    params.put_bool("BPVehicleProfileReady", True)
+    assert managed_processes["modeld"].should_run(True, params, CP)
+
   def test_set_params_with_default_value(self):
     params = Params()
     params.clear_all()

@@ -337,6 +337,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Blindspot", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BlinkerPauseLaneChange", {PERSISTENT | BACKUP, BOOL, "0"}},
 
+    // BluePilot: vehicle profile system
+    {"BPVehicleProfiles", {PERSISTENT | BACKUP | DONT_LOG, JSON}},
+    {"BPVehicleProfileActive", {PERSISTENT | BACKUP, STRING}},
+    {"BPVehicleProfileStatus", {CLEAR_ON_ONROAD_TRANSITION, JSON}},
+    {"BPVehicleProfileReady", {CLEAR_ON_ONROAD_TRANSITION, BOOL}},
+    // End BluePilot
+
     // BluePilot: Portal (Web Routes Server)
     {"EnableWebRoutesServer", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BPPortalPort", {PERSISTENT | BACKUP, INT, "8088"}},

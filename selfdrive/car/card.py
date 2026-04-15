@@ -23,6 +23,9 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
+# BluePilot: vehicle profile restore helper
+from bluepilot.params.vehicle_profiles import apply_vehicle_profile
+# End BluePilot
 
 REPLAY = "REPLAY" in os.environ
 
@@ -111,16 +114,22 @@ class Car:
 
       self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, num_pandas, cached_params,
                         fixed_fingerprint, init_params_list_sp, is_release_sp)
-      sunnypilot_interfaces.setup_interfaces(self.CI, self.params)
-      self.RI = interfaces[self.CI.CP.carFingerprint].RadarInterface(self.CI.CP, self.CI.CP_SP)
       self.CP = self.CI.CP
       self.CP_SP = self.CI.CP_SP
+      # BluePilot: restore per-fingerprint vehicle profile before param-dependent interface setup
+      apply_vehicle_profile(self.CP, self.params)
+      # End BluePilot
+      sunnypilot_interfaces.setup_interfaces(self.CI, self.params)
+      self.RI = interfaces[self.CI.CP.carFingerprint].RadarInterface(self.CI.CP, self.CI.CP_SP)
 
       # continue onto next fingerprinting step in pandad
       self.params.put_bool("FirmwareQueryDone", True)
     else:
       self.CI, self.CP, self.CP_SP = CI, CI.CP, CI.CP_SP
       self.RI = RI
+      # BluePilot: keep profile readiness valid for injected/test car interfaces
+      apply_vehicle_profile(self.CP, self.params)
+      # End BluePilot
 
     self.CP.alternativeExperience = 0
     # mads
