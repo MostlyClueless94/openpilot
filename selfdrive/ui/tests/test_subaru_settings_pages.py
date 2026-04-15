@@ -17,6 +17,19 @@ REMOVED_SUBARU_TUNING_PARAMS = (
   "MCSubaruManualYieldResumeSpeedEnabled",
   "MCSubaruManualYieldResumeSpeed",
 )
+COMPACT_SUBARU_UNWIND_RATE_LABELS = (
+  "L0 Stock",
+  "L1 50 deg/s",
+  "L2 60 deg/s",
+  "L3 75 deg/s",
+  "L4 90 deg/s",
+  "L5 105 deg/s",
+  "L6 120 deg/s",
+  "L7 140 deg/s",
+  "L8 160 deg/s",
+  "L9 180 deg/s",
+  "L10 200 deg/s",
+)
 
 
 def _read(path: Path) -> str:
@@ -89,12 +102,19 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert '"Release Guard Strength"' in source
   assert '"Tighter MADS Turns"' in source
   assert '"MADS Steering Angle Cap"' in source
-  assert '"Unwind Rate Level"' in source
-  assert "Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph" in source
+  assert '"Unwind Rate"' in source
+  assert '"Unwind Rate Level"' not in source
+  assert "SUBARU_UNWIND_RATE_LEVEL_LABELS = (" in source
+  assert "return tr(SUBARU_UNWIND_RATE_LEVEL_LABELS[idx])" in source
+  for label in COMPACT_SUBARU_UNWIND_RATE_LABELS:
+    assert f'"{label}"' in source
+  assert "Level 0 - Stock (" not in source
+  assert "Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph" not in source
   assert 'requested steering angle' in source
   assert 'measured-angle guard' in source
   assert 'low-speed fault protection' in source
   assert 'turn-in behavior and the 545 deg angle cap stay unchanged' in source
+  assert 'Full ladder maps 0.8 to 4.0 deg/frame at 50 Hz' in source
   assert 'Full Manual Yield Release' not in source
   assert 'MCSubaruManualYieldFullReleaseEnabled' not in source
 
@@ -141,8 +161,13 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigButton("unwind rate\\nlevel")' in source
   assert '"MCSubaruUnwindRateLevel"' in source
   assert "SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)" in source
+  assert "SUBARU_UNWIND_RATE_LEVEL_LABELS = (" in source
   assert "list(range(len(SUBARU_UNWIND_RATE_LEVEL_VALUES)))" in source
-  assert "Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph" in source
+  assert "return SUBARU_UNWIND_RATE_LEVEL_LABELS[idx]" in source
+  for label in COMPACT_SUBARU_UNWIND_RATE_LABELS:
+    assert f'"{label}"' in source
+  assert "Level 0 - Stock (" not in source
+  assert "Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph" not in source
   assert 'BigParamControl("soft-capture\\nengage blend", "MCSubaruSoftCaptureEnabled")' in source
   assert 'BigButton("soft-capture\\nstrength")' in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source

@@ -26,6 +26,19 @@ RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)
 SUBARU_UNWIND_RATE_COMMAND_HZ = 50
+SUBARU_UNWIND_RATE_LEVEL_LABELS = (
+  "L0 Stock",
+  "L1 50 deg/s",
+  "L2 60 deg/s",
+  "L3 75 deg/s",
+  "L4 90 deg/s",
+  "L5 105 deg/s",
+  "L6 120 deg/s",
+  "L7 140 deg/s",
+  "L8 160 deg/s",
+  "L9 180 deg/s",
+  "L10 200 deg/s",
+)
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
@@ -218,12 +231,8 @@ class SubaruLayoutMici(NavScroller):
 
   @staticmethod
   def _format_subaru_unwind_rate_label(value: int) -> str:
-    idx = max(0, min(value, len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1))
-    per_frame = SUBARU_UNWIND_RATE_LEVEL_VALUES[idx]
-    deg_s = int(round(per_frame * SUBARU_UNWIND_RATE_COMMAND_HZ))
-    if idx == 0:
-      return f"Level 0 - Stock ({per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph)"
-    return f"Level {idx} - {per_frame:.1f}/frame, {deg_s} deg/s @ 11 mph"
+    idx = max(0, min(value, len(SUBARU_UNWIND_RATE_LEVEL_LABELS) - 1))
+    return SUBARU_UNWIND_RATE_LEVEL_LABELS[idx]
 
   @staticmethod
   def _clamp_mads_steering_angle_cap(value: int) -> int:
