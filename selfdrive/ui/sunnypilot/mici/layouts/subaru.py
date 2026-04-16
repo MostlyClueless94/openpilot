@@ -24,7 +24,10 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
-SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)
+SUBARU_UNWIND_RATE_LEVEL_VALUES = (
+  0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0,
+  4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0,
+)
 SUBARU_UNWIND_RATE_COMMAND_HZ = 50
 SUBARU_UNWIND_RATE_LEVEL_LABELS = (
   "L0 Stock",
@@ -38,6 +41,16 @@ SUBARU_UNWIND_RATE_LEVEL_LABELS = (
   "L8 160 deg/s",
   "L9 180 deg/s",
   "L10 200 deg/s",
+  "L11 225 deg/s",
+  "L12 250 deg/s",
+  "L13 275 deg/s",
+  "L14 300 deg/s",
+  "L15 325 deg/s",
+  "L16 350 deg/s",
+  "L17 375 deg/s",
+  "L18 400 deg/s",
+  "L19 450 deg/s",
+  "L20 500 deg/s",
 )
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5

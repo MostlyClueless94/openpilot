@@ -975,19 +975,24 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_subaru_unwind_rate_level_increases_only_unwind_delta(self):
     stock = self._build_controller(unwind_rate_level=0)
-    high = self._build_controller(unwind_rate_level=10)
+    level_10 = self._build_controller(unwind_rate_level=10)
+    high = self._build_controller(unwind_rate_level=20)
     prev_angle = 100.0
     speed = 5.0
     measured_angle = 100.0
 
     stock_unwind = apply_std_steer_angle_limits(0.0, prev_angle, speed, measured_angle, True, stock._get_active_angle_limits())
+    level_10_unwind = apply_std_steer_angle_limits(0.0, prev_angle, speed, measured_angle, True, level_10._get_active_angle_limits())
     high_unwind = apply_std_steer_angle_limits(0.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits())
     stock_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, stock._get_active_angle_limits())
+    level_10_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, level_10._get_active_angle_limits())
     high_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits())
 
     self.assertAlmostEqual(stock_unwind, 99.2)
-    self.assertAlmostEqual(high_unwind, 96.0)
+    self.assertAlmostEqual(level_10_unwind, 96.0)
+    self.assertAlmostEqual(high_unwind, 90.0)
     self.assertAlmostEqual(stock_windup, 100.8)
+    self.assertAlmostEqual(level_10_windup, stock_windup)
     self.assertAlmostEqual(high_windup, stock_windup)
 
   def test_subaru_unwind_rate_level_keeps_windup_stock_at_every_level(self):

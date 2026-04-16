@@ -43,8 +43,8 @@ MADS_STEERING_ANGLE_CAP_DESC = (
   + "545 deg is the existing angle-LKAS safety maximum, not unlimited."
 )
 SUBARU_UNWIND_RATE_DESC = (
-  "Test-only Subaru angle-LKAS return-to-center rate ladder. Level 0 is stock. Higher levels increase only unwind rate; "
-  + "turn-in behavior and the 545 deg angle cap stay unchanged. Full ladder maps 0.8 to 4.0 deg/frame at 50 Hz."
+  "Aggressive test-only Subaru angle-LKAS return-to-center rate ladder. Level 0 is stock. Higher levels increase only "
+  + "unwind rate; turn-in behavior and the 545 deg angle cap stay unchanged. Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz."
 )
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
@@ -103,7 +103,10 @@ MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
 MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP = {idx: value for idx, value in enumerate(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)}
 MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)
 MADS_STEERING_ANGLE_CAP_VALUE_MAP = {idx: value for idx, value in enumerate(MADS_STEERING_ANGLE_CAP_VALUES)}
-SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)
+SUBARU_UNWIND_RATE_LEVEL_VALUES = (
+  0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0,
+  4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0,
+)
 SUBARU_UNWIND_RATE_COMMAND_HZ = 50
 SUBARU_UNWIND_RATE_LEVEL_LABELS = (
   "L0 Stock",
@@ -117,6 +120,16 @@ SUBARU_UNWIND_RATE_LEVEL_LABELS = (
   "L8 160 deg/s",
   "L9 180 deg/s",
   "L10 200 deg/s",
+  "L11 225 deg/s",
+  "L12 250 deg/s",
+  "L13 275 deg/s",
+  "L14 300 deg/s",
+  "L15 325 deg/s",
+  "L16 350 deg/s",
+  "L17 375 deg/s",
+  "L18 400 deg/s",
+  "L19 450 deg/s",
+  "L20 500 deg/s",
 )
 
 

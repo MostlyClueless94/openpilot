@@ -272,7 +272,7 @@
   },
   "MCSubaruUnwindRateLevel": {
     "title": "MC Custom: Subaru Unwind Rate Level",
-    "description": "Test-only Subaru angle-LKAS return-to-center rate ladder for finding the low-speed LKAS fault threshold. Level 0 is stock. Higher levels increase only unwind rate; turn-in behavior and the 545 deg angle cap stay unchanged.",
+    "description": "Aggressive test-only Subaru angle-LKAS return-to-center rate ladder for finding the low-speed LKAS fault threshold. Level 0 is stock. Higher levels increase only unwind rate; turn-in behavior and the 545 deg angle cap stay unchanged. Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz.",
     "options": [
       { "value": 0, "label": "Level 0 - Stock (0.8/frame, 40 deg/s @ 11 mph)" },
       { "value": 1, "label": "Level 1 - 1.0/frame, 50 deg/s @ 11 mph" },
@@ -284,10 +284,20 @@
       { "value": 7, "label": "Level 7 - 2.8/frame, 140 deg/s @ 11 mph" },
       { "value": 8, "label": "Level 8 - 3.2/frame, 160 deg/s @ 11 mph" },
       { "value": 9, "label": "Level 9 - 3.6/frame, 180 deg/s @ 11 mph" },
-      { "value": 10, "label": "Level 10 - 4.0/frame, 200 deg/s @ 11 mph" }
+      { "value": 10, "label": "Level 10 - 4.0/frame, 200 deg/s @ 11 mph" },
+      { "value": 11, "label": "Level 11 - 4.5/frame, 225 deg/s @ 11 mph" },
+      { "value": 12, "label": "Level 12 - 5.0/frame, 250 deg/s @ 11 mph" },
+      { "value": 13, "label": "Level 13 - 5.5/frame, 275 deg/s @ 11 mph" },
+      { "value": 14, "label": "Level 14 - 6.0/frame, 300 deg/s @ 11 mph" },
+      { "value": 15, "label": "Level 15 - 6.5/frame, 325 deg/s @ 11 mph" },
+      { "value": 16, "label": "Level 16 - 7.0/frame, 350 deg/s @ 11 mph" },
+      { "value": 17, "label": "Level 17 - 7.5/frame, 375 deg/s @ 11 mph" },
+      { "value": 18, "label": "Level 18 - 8.0/frame, 400 deg/s @ 11 mph" },
+      { "value": 19, "label": "Level 19 - 9.0/frame, 450 deg/s @ 11 mph" },
+      { "value": 20, "label": "Level 20 - 10.0/frame, 500 deg/s @ 11 mph" }
     ],
     "min": 0,
-    "max": 10,
+    "max": 20,
     "step": 1
   },
   "MCSubaruActuatorDelayTest": {

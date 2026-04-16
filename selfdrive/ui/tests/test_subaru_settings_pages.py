@@ -29,6 +29,16 @@ COMPACT_SUBARU_UNWIND_RATE_LABELS = (
   "L8 160 deg/s",
   "L9 180 deg/s",
   "L10 200 deg/s",
+  "L11 225 deg/s",
+  "L12 250 deg/s",
+  "L13 275 deg/s",
+  "L14 300 deg/s",
+  "L15 325 deg/s",
+  "L16 350 deg/s",
+  "L17 375 deg/s",
+  "L18 400 deg/s",
+  "L19 450 deg/s",
+  "L20 500 deg/s",
 )
 
 
@@ -90,7 +100,7 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
   assert 'param="MCSubaruUnwindRateLevel"' in source
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
-  assert "SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)" in source
+  assert "4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0," in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
   assert "*range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50)" in source
   assert "value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP" in source
@@ -114,7 +124,7 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'measured-angle guard' in source
   assert 'low-speed fault protection' in source
   assert 'turn-in behavior and the 545 deg angle cap stay unchanged' in source
-  assert 'Full ladder maps 0.8 to 4.0 deg/frame at 50 Hz' in source
+  assert 'Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz' in source
   assert 'Full Manual Yield Release' not in source
   assert 'MCSubaruManualYieldFullReleaseEnabled' not in source
 
@@ -160,7 +170,7 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
   assert 'BigButton("unwind rate\\nlevel")' in source
   assert '"MCSubaruUnwindRateLevel"' in source
-  assert "SUBARU_UNWIND_RATE_LEVEL_VALUES = (0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0)" in source
+  assert "4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0," in source
   assert "SUBARU_UNWIND_RATE_LEVEL_LABELS = (" in source
   assert "list(range(len(SUBARU_UNWIND_RATE_LEVEL_VALUES)))" in source
   assert "return SUBARU_UNWIND_RATE_LEVEL_LABELS[idx]" in source
@@ -299,6 +309,8 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"label": "Level 0 - Stock (0.8/frame, 40 deg/s @ 11 mph)"' in metadata_source
   assert '"label": "Level 6 - 2.4/frame, 120 deg/s @ 11 mph"' in metadata_source
   assert '"label": "Level 10 - 4.0/frame, 200 deg/s @ 11 mph"' in metadata_source
+  assert '"label": "Level 20 - 10.0/frame, 500 deg/s @ 11 mph"' in metadata_source
+  assert '"max": 20' in metadata_source
   assert '"MCSubaruSoftCaptureEnabled"' in metadata_source
   assert '"MCSubaruSoftCaptureLevel"' in metadata_source
   assert '"label": "40 - Caution"' in metadata_source

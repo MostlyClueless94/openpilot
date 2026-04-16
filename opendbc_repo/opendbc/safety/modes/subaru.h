@@ -193,7 +193,7 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
     .angle_rate_down_lookup = {
       {0.0, 5.0, 35.0},
       // BluePilot: allow the MC Subaru unwind-rate test ladder ceiling.
-      {5.0, 4.0, 0.15},
+      {5.0, 10.0, 0.15},
     },
     .frequency = 50,
   };
