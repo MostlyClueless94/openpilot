@@ -19,6 +19,10 @@ from opendbc.car.subaru.carcontroller import (
   MADS_ONLY_FAULT_GUARD_LOW_SPEED,
   MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP,
   MADS_ONLY_FAULT_GUARD_QUIET_FRAMES,
+  MADS_ONLY_FAULT_GUARD_QUIET_RATE,
+  MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN,
+  MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_FRAMES,
+  MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP,
   MADS_ONLY_FAULT_GUARD_RATE_THRESHOLD,
   MADS_ONLY_MAX_STEER_ANGLE,
   MADS_ONLY_MAX_STEER_ANGLE_MAX,
@@ -877,6 +881,124 @@ class TestSubaruCarController(unittest.TestCase):
       expected = subarucan.create_steering_control_angle(controller.packer, quiet_cs.out.steeringAngleDeg, False)
       self.assertEqual(msg, expected)
       self.assertEqual(controller.mads_lkas_fault_guard_quiet_frames, expected_frames)
+
+    msg = controller.handle_angle_lateral(cc, quiet_cs)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, quiet_cs.out.steeringAngleDeg, False)
+    self.assertNotEqual(msg, inhibited)
+
+  def test_mads_only_angle_limit_latches_fault_guard_before_reenable(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=199,
+      unwind_rate_level=20,
+    )
+    cc = self._build_cc(True, False, -184.92)
+    angle_limit_cs = self._build_cs(4.79, -187.97, steering_rate_deg=-38.5)
+    controller.apply_angle_last = -187.41
+
+    msg = controller.handle_angle_lateral(cc, angle_limit_cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, angle_limit_cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertEqual(controller.mads_lkas_fault_guard_source, "mads_angle_limit")
+    self.assertEqual(controller.mads_lkas_fault_guard_quiet_frames, MADS_ONLY_FAULT_GUARD_QUIET_FRAMES)
+    self.assertFalse(controller.subaru_effective_lkas_active)
+
+    fault_shape_cs = self._build_cs(3.50, -179.59, steering_rate_deg=MADS_ONLY_FAULT_GUARD_QUIET_RATE + 15.0)
+    fault_shape_cc = self._build_cc(True, False, -39.17)
+
+    msg = controller.handle_angle_lateral(fault_shape_cc, fault_shape_cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, fault_shape_cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertEqual(controller.mads_lkas_fault_guard_source, "mads_angle_limit")
+    self.assertEqual(controller.mads_lkas_fault_guard_quiet_frames, MADS_ONLY_FAULT_GUARD_QUIET_FRAMES)
+    self.assertFalse(controller.subaru_effective_lkas_active)
+
+  def test_mads_only_angle_limit_guard_requires_angle_margin_before_reenable(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=199,
+    )
+    cc = self._build_cc(True, False, -39.17)
+    angle_limit_cs = self._build_cs(4.79, -187.97, steering_rate_deg=-38.5)
+    near_cap_cs = self._build_cs(3.50, -(MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP - 1.0), steering_rate_deg=0.0)
+    quiet_cs = self._build_cs(
+      3.50,
+      -(MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP - MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN - 1.0),
+      steering_rate_deg=MADS_ONLY_FAULT_GUARD_QUIET_RATE,
+    )
+    controller.apply_angle_last = angle_limit_cs.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, angle_limit_cs)
+    msg = controller.handle_angle_lateral(cc, near_cap_cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, near_cap_cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertEqual(controller.mads_lkas_fault_guard_quiet_frames, MADS_ONLY_FAULT_GUARD_QUIET_FRAMES)
+
+    for expected_frames in range(MADS_ONLY_FAULT_GUARD_QUIET_FRAMES - 1, -1, -1):
+      msg = controller.handle_angle_lateral(cc, quiet_cs)
+      expected = subarucan.create_steering_control_angle(controller.packer, quiet_cs.out.steeringAngleDeg, False)
+      self.assertEqual(msg, expected)
+      self.assertEqual(controller.mads_lkas_fault_guard_quiet_frames, expected_frames)
+
+    msg = controller.handle_angle_lateral(cc, quiet_cs)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, quiet_cs.out.steeringAngleDeg, False)
+    self.assertNotEqual(msg, inhibited)
+
+  def test_mads_only_reenable_unwind_clamp_limits_first_centerward_steps(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=199,
+      unwind_rate_level=20,
+    )
+    cc = self._build_cc(True, False, -39.17)
+    angle_limit_cs = self._build_cs(4.79, -187.97, steering_rate_deg=-38.5)
+    quiet_cs = self._build_cs(
+      3.50,
+      -(MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP - MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN - 1.0),
+      steering_rate_deg=0.0,
+    )
+    controller.apply_angle_last = angle_limit_cs.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, angle_limit_cs)
+    for _ in range(MADS_ONLY_FAULT_GUARD_QUIET_FRAMES):
+      controller.handle_angle_lateral(cc, quiet_cs)
+
+    self.assertEqual(controller.mads_lkas_reenable_unwind_clamp_frames, MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_FRAMES)
+
+    for expected_frames in range(MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_FRAMES - 1, -1, -1):
+      last_angle = controller.apply_angle_last
+      controller.handle_angle_lateral(cc, quiet_cs)
+      self.assertAlmostEqual(abs(controller.apply_angle_last - last_angle), MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP)
+      self.assertEqual(controller.mads_lkas_reenable_unwind_clamp_frames, expected_frames)
+
+    last_angle = controller.apply_angle_last
+    controller.handle_angle_lateral(cc, quiet_cs)
+    self.assertGreater(abs(controller.apply_angle_last - last_angle), MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP)
+
+  def test_mads_only_angle_limit_comparator_delays_calm_high_angle_reenable_until_margin(self):
+    controller = self._build_controller(
+      mads_tighter_turns_enabled=True,
+      mads_max_steering_angle=199,
+    )
+    cc = self._build_cc(True, False, -201.17)
+    angle_limit_cs = self._build_cs(4.00, -182.71, steering_rate_deg=-79.5)
+    calm_near_cap_cs = self._build_cs(4.29, -184.29, steering_rate_deg=12.5)
+    quiet_cs = self._build_cs(4.29, -178.0, steering_rate_deg=12.5)
+    controller.apply_angle_last = -182.54
+
+    controller.handle_angle_lateral(cc, angle_limit_cs)
+    msg = controller.handle_angle_lateral(cc, calm_near_cap_cs)
+    expected = subarucan.create_steering_control_angle(controller.packer, calm_near_cap_cs.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertEqual(controller.mads_lkas_fault_guard_source, "mads_angle_limit")
+    self.assertEqual(controller.mads_lkas_fault_guard_quiet_frames, MADS_ONLY_FAULT_GUARD_QUIET_FRAMES)
+
+    for _ in range(MADS_ONLY_FAULT_GUARD_QUIET_FRAMES):
+      controller.handle_angle_lateral(cc, quiet_cs)
 
     msg = controller.handle_angle_lateral(cc, quiet_cs)
     inhibited = subarucan.create_steering_control_angle(controller.packer, quiet_cs.out.steeringAngleDeg, False)

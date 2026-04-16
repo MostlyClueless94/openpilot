@@ -25,6 +25,8 @@ MADS_ONLY_FAULT_GUARD_QUIET_RATE = 60.0  # deg/s
 MADS_ONLY_FAULT_GUARD_QUIET_FRAMES = 10  # steering command frames (~200 ms with STEER_STEP=2)
 MADS_ONLY_FAULT_GUARD_ANGLE_MARGIN = 20.0  # deg below active cap before high-rate guard arms
 MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN = 5.0  # deg below active cap before quiet countdown can run
+MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_FRAMES = 5  # steering command frames after quiet guard clears
+MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP = 3.0  # deg/frame centerward clamp after quiet guard clears
 ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES = 10  # steering command frames (~200 ms with STEER_STEP=2)
 ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES = 36  # validated default reclaim ramp (steering command frames, ~720 ms with STEER_STEP=2)
 ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_MIN = 0
@@ -83,6 +85,8 @@ class CarController(CarControllerBase, SnGCarController):
     self.subaru_manual_yield_full_release_active = False
     self.subaru_effective_lkas_active = False
     self.mads_lkas_fault_guard_quiet_frames = 0
+    self.mads_lkas_fault_guard_source = "none"
+    self.mads_lkas_reenable_unwind_clamp_frames = 0
     self.angle_driver_override_hold_frames = 0
     self.angle_driver_override_ramp_frames = 0
     self.angle_driver_override_ramp_total_frames = ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES
@@ -178,10 +182,25 @@ class CarController(CarControllerBase, SnGCarController):
       [low_speed_cap, selected_cap],
     ))
 
+  def _reset_mads_lkas_fault_guard(self) -> None:
+    self.mads_lkas_fault_guard_quiet_frames = 0
+    self.mads_lkas_fault_guard_source = "none"
+
+  def _start_mads_lkas_fault_guard(self, source: str) -> None:
+    if self.mads_lkas_fault_guard_quiet_frames <= 0 or self.mads_lkas_fault_guard_source == "none":
+      self.mads_lkas_fault_guard_source = source
+    self.mads_lkas_fault_guard_quiet_frames = MADS_ONLY_FAULT_GUARD_QUIET_FRAMES
+
   def _update_mads_lkas_fault_guard(self, mads_only: bool, speed: float, measured_angle: float,
-                                    steering_rate: float, active_cap: float) -> tuple[bool, str]:
+                                    steering_rate: float, active_cap: float, angle_limited: bool) -> tuple[bool, str]:
     if not mads_only:
-      self.mads_lkas_fault_guard_quiet_frames = 0
+      self._reset_mads_lkas_fault_guard()
+      self.mads_lkas_reenable_unwind_clamp_frames = 0
+      return False, "none"
+
+    if speed > MADS_ONLY_FAULT_GUARD_HIGH_SPEED:
+      self._reset_mads_lkas_fault_guard()
+      self.mads_lkas_reenable_unwind_clamp_frames = 0
       return False, "none"
 
     angle_threshold = max(
@@ -189,28 +208,53 @@ class CarController(CarControllerBase, SnGCarController):
       min(MADS_ONLY_FAULT_GUARD_LOW_SPEED_CAP, active_cap - MADS_ONLY_FAULT_GUARD_ANGLE_MARGIN),
     )
     high_rate_risk = (
-      speed <= MADS_ONLY_FAULT_GUARD_HIGH_SPEED
-      and abs(measured_angle) >= angle_threshold
+      abs(measured_angle) >= angle_threshold
       and abs(steering_rate) >= MADS_ONLY_FAULT_GUARD_RATE_THRESHOLD
     )
 
+    if angle_limited:
+      self._start_mads_lkas_fault_guard("mads_angle_limit")
+      return True, "mads_angle_limit"
+
     if high_rate_risk:
-      self.mads_lkas_fault_guard_quiet_frames = MADS_ONLY_FAULT_GUARD_QUIET_FRAMES
+      self._start_mads_lkas_fault_guard("mads_rate_guard")
       return True, "mads_rate_guard"
 
     if self.mads_lkas_fault_guard_quiet_frames <= 0:
+      self.mads_lkas_fault_guard_source = "none"
       return False, "none"
 
     quiet_enough = (
-      abs(steering_rate) <= MADS_ONLY_FAULT_GUARD_QUIET_RATE
+      speed <= MADS_ONLY_FAULT_GUARD_HIGH_SPEED
+      and abs(steering_rate) <= MADS_ONLY_FAULT_GUARD_QUIET_RATE
       and abs(measured_angle) < active_cap - MADS_ONLY_FAULT_GUARD_REENABLE_MARGIN
     )
     if quiet_enough:
       self.mads_lkas_fault_guard_quiet_frames -= 1
+      if self.mads_lkas_fault_guard_quiet_frames <= 0:
+        self.mads_lkas_reenable_unwind_clamp_frames = MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_FRAMES
     else:
       self.mads_lkas_fault_guard_quiet_frames = MADS_ONLY_FAULT_GUARD_QUIET_FRAMES
 
-    return True, "mads_rate_guard_quiet"
+    return True, f"{self.mads_lkas_fault_guard_source}_quiet"
+
+  def _apply_mads_lkas_reenable_unwind_clamp(self, apply_steer: float, lkas_request: bool) -> tuple[float, bool, bool]:
+    clamp_active = lkas_request and self.mads_lkas_reenable_unwind_clamp_frames > 0
+    if not clamp_active:
+      return apply_steer, False, False
+
+    clamped = False
+    if abs(apply_steer) < abs(self.apply_angle_last):
+      clamped_steer = float(np.clip(
+        apply_steer,
+        self.apply_angle_last - MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP,
+        self.apply_angle_last + MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP,
+      ))
+      clamped = not np.isclose(clamped_steer, apply_steer)
+      apply_steer = clamped_steer
+
+    self.mads_lkas_reenable_unwind_clamp_frames -= 1
+    return apply_steer, True, clamped
 
   @staticmethod
   def _apply_mads_only_steer_target_cap(steer_target: float, mads_only: bool, lkas_request: bool,
@@ -398,16 +442,18 @@ class CarController(CarControllerBase, SnGCarController):
       mads_only_selected_steer_angle,
       CS.out.vEgoRaw,
     )
+    mads_angle_limited = mads_only and abs(CS.out.steeringAngleDeg) >= mads_only_active_steer_angle
     mads_fault_guard_active, mads_fault_guard_reason = self._update_mads_lkas_fault_guard(
       mads_only,
       CS.out.vEgoRaw,
       CS.out.steeringAngleDeg,
       CS.out.steeringRateDeg,
       mads_only_active_steer_angle,
+      mads_angle_limited,
     )
     mads_only_ok = (
       CS.out.vEgoRaw > MADS_ONLY_MIN_SPEED
-      and abs(CS.out.steeringAngleDeg) < mads_only_active_steer_angle
+      and not mads_angle_limited
       and not mads_fault_guard_active
     )
     lkas_allowed = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
@@ -437,7 +483,7 @@ class CarController(CarControllerBase, SnGCarController):
       inhibit_reason = "standstill"
     elif mads_only and CS.out.vEgoRaw <= MADS_ONLY_MIN_SPEED:
       inhibit_reason = "mads_below_min_speed"
-    elif mads_only and abs(CS.out.steeringAngleDeg) >= mads_only_active_steer_angle:
+    elif mads_angle_limited:
       inhibit_reason = "mads_angle_limit"
     elif mads_only and mads_fault_guard_active:
       inhibit_reason = mads_fault_guard_reason
@@ -502,10 +548,11 @@ class CarController(CarControllerBase, SnGCarController):
     )
     self._log_transition(
       "mads_lkas_fault_guard",
-      (mads_fault_guard_active, mads_fault_guard_reason),
+      (mads_fault_guard_active, mads_fault_guard_reason, self.mads_lkas_fault_guard_quiet_frames,
+       self.mads_lkas_fault_guard_source),
       (
         f"mads LKAS fault guard active={mads_fault_guard_active} reason={mads_fault_guard_reason} "
-        + f"quietFrames={self.mads_lkas_fault_guard_quiet_frames} "
+        + f"source={self.mads_lkas_fault_guard_source} quietFrames={self.mads_lkas_fault_guard_quiet_frames} "
         + f"selectedCap={mads_only_selected_steer_angle:.2f} activeCap={mads_only_active_steer_angle:.2f} "
         + f"measuredAngle={CS.out.steeringAngleDeg:.2f} measuredRate={CS.out.steeringRateDeg:.2f} "
         + f"speed={CS.out.vEgoRaw:.2f} madsOnly={mads_only}"
@@ -544,6 +591,12 @@ class CarController(CarControllerBase, SnGCarController):
       mads_only_active_steer_angle,
     )
 
+    apply_steer_before_reenable_clamp = apply_steer
+    apply_steer, reenable_unwind_clamp_active, reenable_unwind_clamped = self._apply_mads_lkas_reenable_unwind_clamp(
+      apply_steer,
+      lkas_request,
+    )
+
     if not lkas_request:
       apply_steer = CS.out.steeringAngleDeg
 
@@ -557,6 +610,16 @@ class CarController(CarControllerBase, SnGCarController):
         + f"applyBeforeCap={apply_steer_before_mads_cap:.2f} apply={apply_steer:.2f} "
         + f"selectedCap={mads_only_selected_steer_angle:.2f} activeCap={mads_only_active_steer_angle:.2f} "
         + f"measuredAngle={CS.out.steeringAngleDeg:.2f} speed={CS.out.vEgoRaw:.2f} madsOnly={mads_only}"
+      ),
+    )
+    self._log_transition(
+      "mads_lkas_reenable_unwind_clamp",
+      (reenable_unwind_clamp_active, reenable_unwind_clamped, self.mads_lkas_reenable_unwind_clamp_frames),
+      (
+        f"mads LKAS reenable unwind clamp active={reenable_unwind_clamp_active} clamped={reenable_unwind_clamped} "
+        + f"framesRemaining={self.mads_lkas_reenable_unwind_clamp_frames} "
+        + f"before={apply_steer_before_reenable_clamp:.2f} apply={apply_steer:.2f} "
+        + f"lastApplied={self.apply_angle_last:.2f} step={MADS_ONLY_FAULT_GUARD_REENABLE_UNWIND_STEP:.2f}"
       ),
     )
     self._log_transition(
