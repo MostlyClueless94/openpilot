@@ -19,191 +19,118 @@ def _read(path: Path) -> str:
   return path.read_text(encoding="utf-8")
 
 
-def test_mc_custom_hosts_simplified_subaru_controls_at_the_end_of_the_page():
+def test_mc_custom_hosts_exact_subaru_lateral_tuning_controls():
   source = _read(MC_CUSTOM)
   assert 'param="DynamicPathColor"' in source
-  assert 'param="DynamicPathColorPalette"' not in source
   assert 'param="CustomModelPathColor"' in source
   assert 'param="MCShowVehicleBrakeStatus"' in source
   assert 'SectionHeader(tr("Subaru"))' in source
-  assert source.index("self._show_vehicle_brake_status,") < source.index("self._subaru_header,")
-  assert 'param="SubaruStopAndGo"' not in source
-  assert 'param="SubaruStopAndGoManualParkingBrake"' not in source
   assert 'param="MCSubaruMatchVehicleSpeedometer"' in source
+
   assert 'param="MCSubaruAdvancedTuning"' in source
+  assert '"Show Lateral Tuning Settings"' in source
+  assert 'param="MCSubaruShowAdvancedDevControls"' in source
+  assert '"Show Advanced Dev Controls"' in source
   assert 'param="MCSubaruManualYieldTorqueThresholdEnabled"' in source
   assert 'param="MCSubaruManualYieldTorqueThreshold"' in source
-  assert 'param="MCSubaruManualYieldFilteredDetectionEnabled"' in source
-  assert '"Filtered Yield Detection"' in source
   assert 'param="MCSubaruManualYieldResumeSoftnessEnabled"' in source
   assert 'param="MCSubaruManualYieldResumeSoftness"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardEnabled"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
-  assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
-  assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
-  assert 'param="MCSubaruTurnInRateLevel"' in source
-  assert '"Turn-In Rate"' in source
   assert 'param="MCSubaruSoftCaptureEnabled"' in source
   assert 'param="MCSubaruSoftCaptureLevel"' in source
-  assert 'Subaru Delay Tweak (Test)' not in source
-  assert "Dynamic Path Color Palette" not in source
+  assert '"MAX Steering Experiment"' in source
+  assert '"MCSubaruMaxSteeringExperiment"' in source
+  assert '"MCSubaruMaxSteeringExperimentSnapshot"' in source
+
+  assert 'param="MCSubaruManualYieldFilteredDetectionEnabled"' not in source
+  assert '"Filtered Yield Detection"' not in source
+  assert 'param="MCSubaruMadsTighterTurnsEnabled"' not in source
+  assert 'param="MCSubaruMadsMaxSteeringAngle"' not in source
+  assert 'param="MCSubaruTurnInRateLevel"' not in source
+  assert 'param="MCSubaruUnwindRateLevel"' not in source
+  assert '"Tighter MADS Turns"' not in source
+  assert '"MADS Steering Angle Cap"' not in source
+  assert '"Turn-In Rate"' not in source
+  assert '"Unwind Rate"' not in source
   for param in REMOVED_SUBARU_TUNING_PARAMS:
     assert param not in source
-  assert "Subaru Steering Smoothing" not in source
-  assert "Smoothing Strength" not in source
-  assert "Center Damping" not in source
-  assert "Custom Resume Speed" not in source
-  assert "Manual Yield Resume Speed" not in source
-  assert "Full Manual Yield Release" not in source
-  assert "MCSubaruManualYieldFullReleaseEnabled" not in source
 
 
-def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
+def test_mc_custom_preserves_lateral_menu_hierarchy_and_max_restore_logic():
   source = _read(MC_CUSTOM)
-  assert 'def _get_current_brand(self) -> str:' not in source
-  assert 'CarPlatformBundle' not in source
-  assert 'def _is_subaru_active(self) -> bool:' not in source
-  assert 'def _get_subaru_stop_and_go_available(self) -> bool:' not in source
-  assert 'def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool) -> None:' in source
-  assert 'self._subaru_header.set_visible(True)' in source
-  assert 'self._subaru_match_vehicle_speedometer.set_visible(True)' in source
-  assert 'self._subaru_advanced_tuning.set_visible(True)' in source
-  assert 'self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)' in source
+  assert 'def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool, advanced_dev_controls_enabled: bool) -> None:' in source
   assert 'self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)' in source
-  assert 'self._manual_yield_filtered_detection.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)' in source
-  assert 'self._subaru_mads_tighter_turns.set_visible(advanced_tuning_enabled)' in source
-  assert 'self._subaru_mads_steering_angle_cap.set_visible(advanced_tuning_enabled)' in source
-  assert 'self._subaru_turn_in_rate_level.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_soft_capture.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)' in source
-  assert 'self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)' in source
-  assert 'self._manual_yield_release_guard_level.action_item.set_enabled(release_guard_enabled)' in source
-  assert 'self._subaru_mads_steering_angle_cap.action_item.set_enabled(mads_tighter_turns_enabled)' in source
-  assert 'self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)' in source
-  assert 'self._set_subaru_section_visibility(advanced_tuning_enabled)' in source
-  assert 'callback=self._on_subaru_toggle_changed' not in source
-  assert 'def _on_subaru_toggle_changed(self, _):' not in source
-  assert 'self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)' in source
-  assert 'self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)' in source
-  assert 'self._manual_yield_filtered_detection.action_item.set_state(filtered_detection_enabled)' in source
-  assert 'self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)' in source
-  assert 'self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)' in source
-  assert 'self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)' in source
-  assert 'self._manual_yield_torque_threshold.action_item.current_value = self._manual_yield_torque_threshold_index(' in source
-  assert 'self._subaru_mads_steering_angle_cap.action_item.current_value = self._mads_steering_angle_cap_index(' in source
-  assert 'self._subaru_turn_in_rate_level.action_item.current_value = max(' in source
-  assert 'self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)' in source
-  assert 'self._manual_yield_torque_threshold.action_item.set_enabled(torque_threshold_enabled)' in source
-  assert 'self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))' in source
-  assert 'self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))' in source
-  assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
-  assert "*range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50)" in source
-  assert "value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP" in source
-  assert "def _manual_yield_torque_threshold_index(value: int) -> int:" in source
-  assert 'value = self._params.get(key, return_default=True)' in source
-  assert "smoothing_enabled" not in source
-  assert "resume_speed_enabled" not in source
+  assert 'self._subaru_advanced_dev_controls.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._subaru_max_steering_experiment.set_visible(advanced_tuning_enabled and advanced_dev_controls_enabled)' in source
+  assert 'self._manual_yield_filtered_detection.set_visible(advanced_tuning_enabled)' not in source
+  assert 'self._subaru_mads_tighter_turns.set_visible' not in source
+  assert 'self._subaru_mads_steering_angle_cap.set_visible' not in source
+  assert 'self._subaru_turn_in_rate_level.set_visible' not in source
+  assert 'self._subaru_unwind_rate_level.set_visible' not in source
+
+  assert 'def _snapshot_max_steering_experiment(self) -> dict:' in source
+  assert 'def _read_max_steering_experiment_snapshot(self) -> dict | None:' in source
+  assert 'def _enable_max_steering_experiment(self) -> None:' in source
+  assert 'def _disable_max_steering_experiment(self) -> None:' in source
+  assert 'self._params.remove(MAX_STEERING_EXPERIMENT_SNAPSHOT)' in source
+  assert '"MCSubaruMadsTighterTurnsEnabled": True' in source
+  assert '"MCSubaruMadsMaxSteeringAngle": 199' in source
+  assert '"MCSubaruTurnInRateLevel": 20' in source
+  assert '"MCSubaruUnwindRateLevel": 20' in source
+  assert '"MCSubaruManualYieldTorqueThreshold": 500' in source
 
 
-def test_params_keys_register_simplified_subaru_tuning_defaults_for_mc_custom_menu():
+def test_params_keys_register_subaru_lateral_menu_rework_defaults():
   source = _read(PARAMS_KEYS)
   assert '{"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
-  assert '{"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"MCSubaruShowAdvancedDevControls", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"MCSubaruMaxSteeringExperiment", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
+  assert '{"MCSubaruMaxSteeringExperimentSnapshot", {PERSISTENT | BACKUP | DONT_LOG, JSON}}' in source
+  assert '{"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in source
-  assert '{"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruManualYieldFullReleaseEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
-  assert '{"MCSubaruManualYieldResumeSoftnessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in source
-  assert '{"MCSubaruManualYieldReleaseGuardEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in source
-  assert '{"MCSubaruMadsTighterTurnsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "120"}}' in source
-  assert '{"MCSubaruTurnInRateLevel", {PERSISTENT | BACKUP, INT, "0"}}' in source
-  assert '{"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in source
+  assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "180"}}' in source
   assert '{"SubaruStopAndGo", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"SubaruStopAndGoManualParkingBrake", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   for param in REMOVED_SUBARU_TUNING_PARAMS:
     assert param not in source
 
 
-def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
+def test_params_metadata_describes_subaru_lateral_menu_rework():
   source = _read(PARAMS_METADATA)
   assert '"MCSubaruAdvancedTuning"' in source
-  assert '"title": "Advanced Tuning"' in source
-  assert 'Show Subaru lateral tuning controls. Hidden controls keep their saved values active.' in source
-  assert '"MCSubaruMatchVehicleSpeedometer"' in source
-  assert '"title": "Match Vehicle Speedometer"' in source
+  assert '"title": "Show Lateral Tuning Settings"' in source
+  assert '"MCSubaruShowAdvancedDevControls"' in source
+  assert '"title": "Show Advanced Dev Controls"' in source
+  assert '"MCSubaruMaxSteeringExperiment"' in source
+  assert '"title": "MAX Steering Experiment"' in source
+  assert 'MADS steering angle cap to 199' in source
+  assert '180 deg is the default turning request limit' in source
+  assert 'turn-in rate to L20 500 deg/s' in source
+  assert 'unwind rate to L20 500 deg/s' in source
+  assert 'manual yield torque threshold to 500' in source
+  assert 'may produce LKAS faults' in source
+  assert '"title": "Filtered Yield Detection"' not in source
+  assert 'Ford-style filtering for Subaru manual-yield detection' not in source
   assert '"MCSubaruManualYieldTorqueThresholdEnabled"' in source
   assert '"title": "Custom Yield Torque"' in source
-  assert '"MCSubaruManualYieldTorqueThreshold"' in source
-  assert '"title": "Manual Yield Torque Threshold"' in source
-  assert '"MCSubaruManualYieldFilteredDetectionEnabled"' in source
-  assert '"title": "Filtered Yield Detection"' in source
-  assert 'Ford-style filtering for Subaru manual-yield detection' in source
-  assert 'light hand torque can stay latched through brief torque dropouts' in source
-  assert '"MCSubaruManualYieldFullReleaseEnabled"' not in source
-  assert '"title": "Full Manual Yield Release"' not in source
-  assert 'Release Subaru LKAS/EPS while manual yield is active' not in source
-  assert '"label": "40 - Caution"' in source
-  assert '"label": "80 - Stock"' in source
-  assert '"label": "150"' in source
-  assert '"label": "200 - High"' in source
-  assert '"label": "500 - High"' in source
-  assert '"max": 500' in source
-  assert '"value": 155' not in source
-  assert '"value": 175' not in source
   assert '"MCSubaruManualYieldResumeSoftnessEnabled"' in source
   assert '"title": "Custom Resume Softness"' in source
-  assert 'no SubiPilot reclaim ramp is applied and your saved softness selection is kept' in source
-  assert '"MCSubaruManualYieldResumeSoftness"' in source
-  assert '"title": "Manual Yield Resume Softness"' in source
-  assert '"label": "Standard"' in source
-  assert '"label": "Extra Soft"' in source
-  assert '"label": "Max Soft"' in source
   assert '"MCSubaruManualYieldReleaseGuardEnabled"' in source
   assert '"title": "Manual Yield Release Guard"' in source
-  assert 'reduce false reclaim jerks when you are still holding the wheel at a steady angle' in source
-  assert '"MCSubaruManualYieldReleaseGuardLevel"' in source
-  assert '"title": "Release Guard Strength"' in source
-  assert '"label": "Light"' in source
-  assert '"label": "Medium"' in source
-  assert '"label": "Strong"' in source
-  assert '"MCSubaruMadsTighterTurnsEnabled"' in source
-  assert '"title": "Tighter MADS Turns"' in source
-  assert '"MCSubaruMadsMaxSteeringAngle"' in source
-  assert '"title": "MADS Steering Angle Cap"' in source
-  assert '"MCSubaruTurnInRateLevel"' in source
-  assert '"title": "MC Custom: Subaru Turn-In Rate Level"' in source
-  assert 'MADS-only turn-in rate ladder' in source
-  assert '"label": "L0 Stock"' in source
-  assert '"label": "L20 500 deg/s"' in source
-  assert 'requested steering angle' in source
-  assert 'measured-angle guard' in source
-  assert 'low-speed fault protection' in source
-  assert 'Below 8 mph' in source
-  assert '"label": "120 - Stock"' in source
-  assert '"label": "190"' in source
-  assert '"label": "199"' in source
-  assert '"label": "200"' in source
-  assert '"label": "545 - Max Safe"' in source
-  assert 'does not bypass panda safety or normal driving limits' in source
   assert '"MCSubaruSoftCaptureEnabled"' in source
   assert '"title": "Soft-Capture Engage Blend"' in source
   assert '"MCSubaruSoftCaptureLevel"' in source
   assert '"title": "Soft-Capture Strength"' in source
-  assert '"label": "1 - Light"' in source
-  assert '"label": "5 - Max"' in source
   for param in REMOVED_SUBARU_TUNING_PARAMS:
     assert param not in source
-  assert '"title": "Subaru Steering Smoothing"' not in source
-  assert '"title": "Center Damping"' not in source
-  assert '"title": "Custom Resume Speed"' not in source
-  assert '"title": "Manual Yield Resume Speed"' not in source
-  assert '"label": "Fastest"' not in source
-  assert '"label": "Slowest"' not in source

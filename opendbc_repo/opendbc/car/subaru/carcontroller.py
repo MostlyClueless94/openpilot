@@ -15,7 +15,7 @@ from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarController
 MAX_STEER_RATE = 25  # deg/s
 MAX_STEER_RATE_FRAMES = 7  # tx control frames needed before torque can be cut
 MADS_ONLY_MIN_SPEED = 0.44704  # m/s (1 mph)
-MADS_ONLY_MAX_STEER_ANGLE = 120.0  # deg
+MADS_ONLY_MAX_STEER_ANGLE = 180.0  # deg
 MADS_ONLY_MAX_STEER_ANGLE_MAX = 545.0  # deg, matches Subaru angle-LKAS safety max
 MADS_ONLY_FAULT_GUARD_LOW_SPEED = 8.0 * 0.44704  # m/s
 MADS_ONLY_FAULT_GUARD_HIGH_SPEED = 15.0 * 0.44704  # m/s

@@ -56,6 +56,9 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldTorqueThresholdEnabled",
     "MCSubaruManualYieldTorqueThreshold",
     "MCSubaruManualYieldFilteredDetectionEnabled",
+    "MCSubaruShowAdvancedDevControls",
+    "MCSubaruMaxSteeringExperiment",
+    "MCSubaruMaxSteeringExperimentSnapshot",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
     "MCSubaruMadsTighterTurnsEnabled",
@@ -95,7 +98,7 @@ class TestSubaruCarController(unittest.TestCase):
   def _build_controller(self, *, soft_capture_enabled=False, soft_capture_level=3,
                         resume_softness_enabled=False, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2,
-                        mads_tighter_turns_enabled=False, mads_max_steering_angle=120,
+                        mads_tighter_turns_enabled=False, mads_max_steering_angle=180,
                         unwind_rate_level=0, turn_in_rate_level=0):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
@@ -665,8 +668,8 @@ class TestSubaruCarController(unittest.TestCase):
 
   def test_mads_only_angle_limit_still_inhibits_above_one_mph(self):
     controller = self._build_controller()
-    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, 120.0)
-    cc = self._build_cc(True, False, 124.0)
+    cs = self._build_cs(MADS_ONLY_MIN_SPEED + 0.5, MADS_ONLY_MAX_STEER_ANGLE)
+    cc = self._build_cc(True, False, MADS_ONLY_MAX_STEER_ANGLE + 4.0)
     controller.apply_angle_last = cs.out.steeringAngleDeg
 
     msg = controller.handle_angle_lateral(cc, cs)
@@ -695,7 +698,7 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertAlmostEqual(controller.apply_angle_last, cs.out.steeringAngleDeg)
 
   def test_mads_only_tighter_turns_levels_increase_angle_cap(self):
-    for angle_cap in (120, 180, 190, 199, 200, 240, 360, 545):
+    for angle_cap in (180, 190, 199, 200, 240, 360, 545):
       controller = self._build_controller(
         mads_tighter_turns_enabled=True,
         mads_max_steering_angle=angle_cap,
@@ -1223,12 +1226,18 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertNotIn(155, MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)
     self.assertNotIn(175, MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)
 
-  def test_manual_yield_torque_threshold_direct_mode_does_not_debounce(self):
+  def test_manual_yield_torque_threshold_always_uses_filtered_detection(self):
+    self.params.put_bool("MCSubaruManualYieldFilteredDetectionEnabled", False)
+    cs = self._build_carstate(torque_threshold_enabled=True, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
     source = inspect.getsource(CarState._get_manual_yield_steering_pressed)
 
-    self.assertIn("if not self.mc_subaru_manual_yield_filtered_detection_enabled:", source)
-    self.assertIn("return threshold_exceeded", source)
+    self.assertTrue(cs.mc_subaru_manual_yield_filtered_detection_enabled)
+    self.assertNotIn("return threshold_exceeded", source)
     self.assertIn("return self.update_steering_pressed(threshold_exceeded, MANUAL_YIELD_FILTERED_DETECTION_FRAMES)", source)
+    self.assertFalse(cs._get_manual_yield_steering_pressed(MANUAL_YIELD_TORQUE_THRESHOLD_MAX))
+    for _ in range(5):
+      pressed = cs._get_manual_yield_steering_pressed(MANUAL_YIELD_TORQUE_THRESHOLD_MAX)
+    self.assertTrue(pressed)
 
   def test_outback_2023_angle_steering_route_still_present(self):
     route = next(route for route in routes if route.platform == CAR.SUBARU_OUTBACK_2023)

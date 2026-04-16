@@ -28,7 +28,9 @@ def test_carstate_logs_active_manual_yield_torque_threshold():
   source = _read(CARSTATE)
   assert 'MCSubaruManualYieldTorqueThresholdEnabled' in source
   assert 'MCSubaruManualYieldTorqueThreshold' in source
-  assert 'MCSubaruManualYieldFilteredDetectionEnabled' in source
+  assert 'MCSubaruManualYieldFilteredDetectionEnabled' not in source
+  assert 'self.mc_subaru_manual_yield_filtered_detection_enabled = True' in source
+  assert 'return threshold_exceeded' not in source
   assert 'manual yield torque threshold active={steer_threshold}' in source
   assert 'customEnabled={self.mc_subaru_manual_yield_torque_threshold_enabled}' in source
   assert 'filteredEnabled={self.mc_subaru_manual_yield_filtered_detection_enabled}' in source
@@ -36,6 +38,7 @@ def test_carstate_logs_active_manual_yield_torque_threshold():
 
 def test_carcontroller_request_logs_include_target_and_handoff_context():
   source = _read(CARCONTROLLER)
+  assert "MADS_ONLY_MAX_STEER_ANGLE = 180.0" in source
   assert 'angle LKAS request={lkas_request} inhibit={inhibit_reason} rawTarget={raw_steer_target:.2f}' in source
   assert 'target={steer_target:.2f}' in source
   assert 'lastApplied={self.apply_angle_last:.2f}' in source

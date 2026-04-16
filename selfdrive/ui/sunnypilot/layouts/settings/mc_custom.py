@@ -4,18 +4,26 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+import json
+
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
+from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, option_item_sp, toggle_item_sp
-from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets import DialogResult, Widget
+from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
-ADVANCED_TUNING_DESC = "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
+ADVANCED_TUNING_DESC = "Show Subaru lateral tuning settings. Hidden controls keep their saved values active."
+ADVANCED_DEV_CONTROLS_DESC = (
+  "Show experimental Subaru steering controls for controlled testing. These can make the car request much more steering "
+  + "and may produce LKAS faults if used carelessly."
+)
 RESUME_SOFTNESS_DESC = (
   "Adjust how gently steering re-engages after manual override. Higher levels reduce the initial reclaim bite."
 )
@@ -31,26 +39,6 @@ RELEASE_GUARD_STRENGTH_DESC = (
   "Adjust how much confirmation Subaru waits for before reclaim begins after manual override. "
   + "Higher levels wait longer for a clean release before the existing resume ramp starts."
 )
-MADS_TIGHTER_TURNS_DESC = (
-  "Cap Subaru MADS lateral-only requested steering angle so tight-turn testing cannot request more than the selected value. "
-  + "Built-in low-speed fault protection shapes high caps down to 180 deg at or below 8 mph and temporarily releases LKAS "
-  + "during high-rate tight turns. This does not bypass panda safety or normal driving limits."
-)
-MADS_STEERING_ANGLE_CAP_DESC = (
-  "Choose the Subaru MADS lateral-only requested steering angle cap. 120 deg is stock/current behavior. "
-  + "Higher values allow more MADS-only turning above 15 mph. Below 8 mph, Subaru fault protection limits the active cap "
-  + "to 180 deg; between 8 and 15 mph it ramps up to the selected value. The cap also remains a measured-angle guard. "
-  + "545 deg is the existing angle-LKAS safety maximum, not unlimited."
-)
-SUBARU_UNWIND_RATE_DESC = (
-  "Aggressive test-only Subaru angle-LKAS return-to-center rate ladder. Level 0 is stock. Higher levels increase only "
-  + "unwind rate; turn-in behavior and the 545 deg angle cap stay unchanged. Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz."
-)
-SUBARU_TURN_IN_RATE_DESC = (
-  "Aggressive test-only Subaru angle-LKAS MADS-only turn-in rate ladder. Level 0 is stock. Higher levels increase only "
-  + "wind-up rate while MADS-only is requesting steering away from center; unwind rate, angle caps, and full engaged lateral stay unchanged. "
-  + "Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz."
-)
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
   + "threshold for your platform while keeping your saved test value. Settings near the minimum may falsely detect manual "
@@ -64,10 +52,6 @@ YIELD_TORQUE_DESC = (
   + "the stock threshold on modern Subaru angle-LKAS platforms. Values above 80 are test values that require more driver "
   + "torque and may be slower to detect manual override. Values above 150 are high experimental test points and may "
   + "effectively disable manual-yield detection. 40 is the minimum allowed test value."
-)
-FILTERED_YIELD_DETECTION_DESC = (
-  "Use Ford-style filtering for Subaru manual-yield detection so light hand torque can stay latched through brief "
-  + "dropouts. This keeps the selected torque threshold, but requires persistent input before latching."
 )
 SOFT_CAPTURE_DESC = (
   "Smooth the transition when openpilot takes back steering control. "
@@ -97,6 +81,16 @@ MATCH_VEHICLE_SPEEDOMETER_DESC = (
   "When enabled, the Subaru on-road speedometer matches the vehicle dash or cluster speed when supported. "
   + "Turn it off to show true wheel-speed-based speed instead."
 )
+MAX_STEERING_EXPERIMENT_DESC = (
+  "Apply the maximum Subaru MADS-only steering test preset. Enabling stores your current steering cap, turn-in rate, "
+  + "unwind rate, and manual-yield torque threshold so they can be restored when this is turned off."
+)
+MAX_STEERING_EXPERIMENT_WARNING = (
+  "<p><b>MAX Steering Experiment</b></p>"
+  "<p>This is experimental and designed only for controlled steering-capability testing.</p>"
+  "<p>It sets the MADS steering angle cap to 199, turn-in and unwind to L20 500 deg/s, and manual yield torque to 500.</p>"
+  "<p>It may produce LKAS faults in the vehicle. Do not use it outside controlled environments.</p>"
+)
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
 MANUAL_YIELD_TORQUE_THRESHOLD_FINE_MAX = 150
@@ -106,38 +100,23 @@ MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
   *range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50),
 )
 MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP = {idx: value for idx, value in enumerate(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)}
-MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)
-MADS_STEERING_ANGLE_CAP_VALUE_MAP = {idx: value for idx, value in enumerate(MADS_STEERING_ANGLE_CAP_VALUES)}
-SUBARU_UNWIND_RATE_LEVEL_VALUES = (
-  0.8, 1.0, 1.2, 1.5, 1.8, 2.1, 2.4, 2.8, 3.2, 3.6, 4.0,
-  4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0,
-)
-SUBARU_UNWIND_RATE_COMMAND_HZ = 50
-SUBARU_UNWIND_RATE_LEVEL_LABELS = (
-  "L0 Stock",
-  "L1 50 deg/s",
-  "L2 60 deg/s",
-  "L3 75 deg/s",
-  "L4 90 deg/s",
-  "L5 105 deg/s",
-  "L6 120 deg/s",
-  "L7 140 deg/s",
-  "L8 160 deg/s",
-  "L9 180 deg/s",
-  "L10 200 deg/s",
-  "L11 225 deg/s",
-  "L12 250 deg/s",
-  "L13 275 deg/s",
-  "L14 300 deg/s",
-  "L15 325 deg/s",
-  "L16 350 deg/s",
-  "L17 375 deg/s",
-  "L18 400 deg/s",
-  "L19 450 deg/s",
-  "L20 500 deg/s",
-)
-SUBARU_TURN_IN_RATE_LEVEL_VALUES = SUBARU_UNWIND_RATE_LEVEL_VALUES
-SUBARU_TURN_IN_RATE_LEVEL_LABELS = SUBARU_UNWIND_RATE_LEVEL_LABELS
+MAX_STEERING_EXPERIMENT_SNAPSHOT = "MCSubaruMaxSteeringExperimentSnapshot"
+MAX_STEERING_EXPERIMENT_PARAMS = {
+  "MCSubaruMadsTighterTurnsEnabled": ("bool", False),
+  "MCSubaruMadsMaxSteeringAngle": ("int", 180),
+  "MCSubaruTurnInRateLevel": ("int", 0),
+  "MCSubaruUnwindRateLevel": ("int", 0),
+  "MCSubaruManualYieldTorqueThresholdEnabled": ("bool", False),
+  "MCSubaruManualYieldTorqueThreshold": ("int", 80),
+}
+MAX_STEERING_EXPERIMENT_VALUES = {
+  "MCSubaruMadsTighterTurnsEnabled": True,
+  "MCSubaruMadsMaxSteeringAngle": 199,
+  "MCSubaruTurnInRateLevel": 20,
+  "MCSubaruUnwindRateLevel": 20,
+  "MCSubaruManualYieldTorqueThresholdEnabled": True,
+  "MCSubaruManualYieldTorqueThreshold": 500,
+}
 
 
 class MCCustomLayout(Widget):
@@ -196,10 +175,16 @@ class MCCustomLayout(Widget):
       initial_state=self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True),
     )
     self._subaru_advanced_tuning = toggle_item_sp(
-      title=lambda: tr("Advanced Tuning"),
+      title=lambda: tr("Show Lateral Tuning Settings"),
       description=lambda: tr(ADVANCED_TUNING_DESC),
       param="MCSubaruAdvancedTuning",
       initial_state=self._get_bool_param("MCSubaruAdvancedTuning"),
+    )
+    self._subaru_advanced_dev_controls = toggle_item_sp(
+      title=lambda: tr("Show Advanced Dev Controls"),
+      description=lambda: tr(ADVANCED_DEV_CONTROLS_DESC),
+      param="MCSubaruShowAdvancedDevControls",
+      initial_state=self._get_bool_param("MCSubaruShowAdvancedDevControls"),
     )
     self._manual_yield_torque_threshold_enabled = toggle_item_sp(
       title=lambda: tr("Custom Yield Torque"),
@@ -217,12 +202,6 @@ class MCCustomLayout(Widget):
       value_map=MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP,
       label_callback=self._format_manual_yield_torque_threshold_label,
       inline=False,
-    )
-    self._manual_yield_filtered_detection = toggle_item_sp(
-      title=lambda: tr("Filtered Yield Detection"),
-      description=lambda: tr(FILTERED_YIELD_DETECTION_DESC),
-      param="MCSubaruManualYieldFilteredDetectionEnabled",
-      initial_state=self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled"),
     )
     self._manual_yield_resume_softness_enabled = toggle_item_sp(
       title=lambda: tr("Custom Resume Softness"),
@@ -256,43 +235,6 @@ class MCCustomLayout(Widget):
       label_callback=self._format_release_guard_label,
       inline=False,
     )
-    self._subaru_mads_tighter_turns = toggle_item_sp(
-      title=lambda: tr("Tighter MADS Turns"),
-      description=lambda: tr(MADS_TIGHTER_TURNS_DESC),
-      param="MCSubaruMadsTighterTurnsEnabled",
-      initial_state=self._get_bool_param("MCSubaruMadsTighterTurnsEnabled"),
-    )
-    self._subaru_mads_steering_angle_cap = option_item_sp(
-      title=lambda: tr("MADS Steering Angle Cap"),
-      description=lambda: tr(MADS_STEERING_ANGLE_CAP_DESC),
-      param="MCSubaruMadsMaxSteeringAngle",
-      min_value=0,
-      max_value=len(MADS_STEERING_ANGLE_CAP_VALUES) - 1,
-      value_change_step=1,
-      value_map=MADS_STEERING_ANGLE_CAP_VALUE_MAP,
-      label_callback=self._format_mads_steering_angle_cap_label,
-      inline=False,
-    )
-    self._subaru_unwind_rate_level = option_item_sp(
-      title=lambda: tr("Unwind Rate"),
-      description=lambda: tr(SUBARU_UNWIND_RATE_DESC),
-      param="MCSubaruUnwindRateLevel",
-      min_value=0,
-      max_value=len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1,
-      value_change_step=1,
-      label_callback=self._format_subaru_unwind_rate_label,
-      inline=False,
-    )
-    self._subaru_turn_in_rate_level = option_item_sp(
-      title=lambda: tr("Turn-In Rate"),
-      description=lambda: tr(SUBARU_TURN_IN_RATE_DESC),
-      param="MCSubaruTurnInRateLevel",
-      min_value=0,
-      max_value=len(SUBARU_TURN_IN_RATE_LEVEL_VALUES) - 1,
-      value_change_step=1,
-      label_callback=self._format_subaru_turn_in_rate_label,
-      inline=False,
-    )
     self._subaru_soft_capture = toggle_item_sp(
       title=lambda: tr("Soft-Capture Engage Blend"),
       description=lambda: tr(SOFT_CAPTURE_DESC),
@@ -309,6 +251,12 @@ class MCCustomLayout(Widget):
       label_callback=self._format_soft_capture_label,
       inline=False,
     )
+    self._subaru_max_steering_experiment = toggle_item_sp(
+      title=lambda: tr("MAX Steering Experiment"),
+      description=lambda: tr(MAX_STEERING_EXPERIMENT_DESC),
+      initial_state=self._get_bool_param("MCSubaruMaxSteeringExperiment"),
+      callback=self._on_max_steering_experiment_toggled,
+    )
 
     return [
       SectionHeader(tr("Pathing")),
@@ -321,17 +269,14 @@ class MCCustomLayout(Widget):
       self._subaru_advanced_tuning,
       self._manual_yield_torque_threshold_enabled,
       self._manual_yield_torque_threshold,
-      self._manual_yield_filtered_detection,
       self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
       self._manual_yield_release_guard_enabled,
       self._manual_yield_release_guard_level,
-      self._subaru_mads_tighter_turns,
-      self._subaru_mads_steering_angle_cap,
-      self._subaru_turn_in_rate_level,
-      self._subaru_unwind_rate_level,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
+      self._subaru_advanced_dev_controls,
+      self._subaru_max_steering_experiment,
     ]
 
   @staticmethod
@@ -370,90 +315,115 @@ class MCCustomLayout(Widget):
     idx = max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))
     return tr(SOFT_CAPTURE_STRENGTH_LABELS[idx])
 
-  @staticmethod
-  def _format_mads_steering_angle_cap_label(value: int) -> str:
-    if value == 120:
-      return tr("120 - Stock")
-    if value == 545:
-      return tr("545 - Max Safe")
-    return str(value)
+  def _snapshot_max_steering_experiment(self) -> dict:
+    snapshot = {}
+    for key, (kind, default) in MAX_STEERING_EXPERIMENT_PARAMS.items():
+      snapshot[key] = self._get_bool_param(key, bool(default)) if kind == "bool" else self._get_int_param(key, int(default))
+    self._params.put(MAX_STEERING_EXPERIMENT_SNAPSHOT, json.dumps(snapshot, separators=(",", ":")))
+    return snapshot
 
-  @staticmethod
-  def _format_subaru_unwind_rate_label(value: int) -> str:
-    idx = max(0, min(value, len(SUBARU_UNWIND_RATE_LEVEL_LABELS) - 1))
-    return tr(SUBARU_UNWIND_RATE_LEVEL_LABELS[idx])
+  def _read_max_steering_experiment_snapshot(self) -> dict | None:
+    raw_snapshot = self._params.get(MAX_STEERING_EXPERIMENT_SNAPSHOT)
+    if isinstance(raw_snapshot, bytes):
+      raw_snapshot = raw_snapshot.decode("utf-8", errors="ignore")
+    if not raw_snapshot:
+      return None
+    try:
+      snapshot = json.loads(raw_snapshot)
+    except (TypeError, ValueError):
+      return None
+    return snapshot if isinstance(snapshot, dict) else None
 
-  @staticmethod
-  def _format_subaru_turn_in_rate_label(value: int) -> str:
-    idx = max(0, min(value, len(SUBARU_TURN_IN_RATE_LEVEL_LABELS) - 1))
-    return tr(SUBARU_TURN_IN_RATE_LEVEL_LABELS[idx])
+  def _put_max_steering_experiment_values(self, values: dict) -> None:
+    for key, (kind, default) in MAX_STEERING_EXPERIMENT_PARAMS.items():
+      value = values.get(key, default)
+      if kind == "bool":
+        self._params.put_bool(key, bool(value))
+      else:
+        try:
+          value = int(value)
+        except (TypeError, ValueError):
+          value = int(default)
+        self._params.put(key, str(value))
 
-  @staticmethod
-  def _mads_steering_angle_cap_index(value: int) -> int:
-    return min(
-      range(len(MADS_STEERING_ANGLE_CAP_VALUES)),
-      key=lambda idx: abs(MADS_STEERING_ANGLE_CAP_VALUES[idx] - value),
-    )
+  def _enable_max_steering_experiment(self) -> None:
+    self._snapshot_max_steering_experiment()
+    self._put_max_steering_experiment_values(MAX_STEERING_EXPERIMENT_VALUES)
+    self._params.put_bool("MCSubaruMaxSteeringExperiment", True)
 
-  def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool) -> None:
+  def _disable_max_steering_experiment(self) -> None:
+    self._put_max_steering_experiment_values(self._read_max_steering_experiment_snapshot() or {})
+    self._params.put_bool("MCSubaruMaxSteeringExperiment", False)
+    self._params.remove(MAX_STEERING_EXPERIMENT_SNAPSHOT)
+
+  def _on_max_steering_experiment_toggled(self, enabled: bool) -> None:
+    if not enabled:
+      self._disable_max_steering_experiment()
+      return
+
+    self._subaru_max_steering_experiment.action_item.set_state(False)
+
+    def confirm_max_steering_experiment(result: DialogResult) -> None:
+      if result == DialogResult.CONFIRM:
+        self._enable_max_steering_experiment()
+      self._subaru_max_steering_experiment.action_item.set_state(
+        self._get_bool_param("MCSubaruMaxSteeringExperiment")
+      )
+
+    gui_app.push_widget(ConfirmDialog(
+      MAX_STEERING_EXPERIMENT_WARNING,
+      tr("Enable"),
+      tr("Cancel"),
+      rich=True,
+      callback=confirm_max_steering_experiment,
+    ))
+
+  def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool, advanced_dev_controls_enabled: bool) -> None:
     self._subaru_header.set_visible(True)
     self._subaru_match_vehicle_speedometer.set_visible(True)
     self._subaru_advanced_tuning.set_visible(True)
     self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_torque_threshold.set_visible(advanced_tuning_enabled)
-    self._manual_yield_filtered_detection.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)
-    self._subaru_mads_tighter_turns.set_visible(advanced_tuning_enabled)
-    self._subaru_mads_steering_angle_cap.set_visible(advanced_tuning_enabled)
-    self._subaru_turn_in_rate_level.set_visible(advanced_tuning_enabled)
-    self._subaru_unwind_rate_level.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
+    self._subaru_advanced_dev_controls.set_visible(advanced_tuning_enabled)
+
+    self._subaru_max_steering_experiment.set_visible(advanced_tuning_enabled and advanced_dev_controls_enabled)
 
   def _update_subaru_settings(self) -> None:
     advanced_tuning_enabled = self._get_bool_param("MCSubaruAdvancedTuning")
+    advanced_dev_controls_enabled = self._get_bool_param("MCSubaruShowAdvancedDevControls")
     torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
-    filtered_detection_enabled = self._get_bool_param("MCSubaruManualYieldFilteredDetectionEnabled")
     resume_softness_enabled = self._get_bool_param("MCSubaruManualYieldResumeSoftnessEnabled")
     release_guard_enabled = self._get_bool_param("MCSubaruManualYieldReleaseGuardEnabled")
-    mads_tighter_turns_enabled = self._get_bool_param("MCSubaruMadsTighterTurnsEnabled")
     self._subaru_match_vehicle_speedometer.action_item.set_state(
       self._get_bool_param("MCSubaruMatchVehicleSpeedometer", True)
     )
     self._subaru_advanced_tuning.action_item.set_state(advanced_tuning_enabled)
+    self._subaru_advanced_dev_controls.action_item.set_state(advanced_dev_controls_enabled)
     self._manual_yield_torque_threshold_enabled.action_item.set_state(torque_threshold_enabled)
-    self._manual_yield_filtered_detection.action_item.set_state(filtered_detection_enabled)
     self._manual_yield_resume_softness_enabled.action_item.set_state(resume_softness_enabled)
     self._manual_yield_release_guard_enabled.action_item.set_state(release_guard_enabled)
-    self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)
+    self._subaru_max_steering_experiment.action_item.set_state(
+      self._get_bool_param("MCSubaruMaxSteeringExperiment")
+    )
     self._manual_yield_torque_threshold.action_item.current_value = self._manual_yield_torque_threshold_index(
       self._get_int_param("MCSubaruManualYieldTorqueThreshold", 80)
     )
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
     self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))
-    self._subaru_mads_steering_angle_cap.action_item.current_value = self._mads_steering_angle_cap_index(
-      self._get_int_param("MCSubaruMadsMaxSteeringAngle", 120)
-    )
-    self._subaru_turn_in_rate_level.action_item.current_value = max(
-      0,
-      min(self._get_int_param("MCSubaruTurnInRateLevel"), len(SUBARU_TURN_IN_RATE_LEVEL_VALUES) - 1),
-    )
-    self._subaru_unwind_rate_level.action_item.current_value = max(
-      0,
-      min(self._get_int_param("MCSubaruUnwindRateLevel"), len(SUBARU_UNWIND_RATE_LEVEL_VALUES) - 1),
-    )
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
     self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))
     self._manual_yield_torque_threshold.action_item.set_enabled(torque_threshold_enabled)
     self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)
     self._manual_yield_release_guard_level.action_item.set_enabled(release_guard_enabled)
-    self._subaru_mads_steering_angle_cap.action_item.set_enabled(mads_tighter_turns_enabled)
     self._subaru_soft_capture_strength.action_item.set_enabled(soft_capture_enabled)
-    self._set_subaru_section_visibility(advanced_tuning_enabled)
+    self._set_subaru_section_visibility(advanced_tuning_enabled, advanced_dev_controls_enabled)
 
   def _update_state(self):
     super()._update_state()

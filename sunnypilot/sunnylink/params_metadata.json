@@ -335,8 +335,16 @@
     "description": "Test a lower Subaru angle steering actuator delay from 0.10s to 0.08s. This requires a reboot and is intended to help unwind timing after larger turns."
   },
   "MCSubaruAdvancedTuning": {
-    "title": "Advanced Tuning",
-    "description": "Show Subaru lateral tuning controls. Hidden controls keep their saved values active."
+    "title": "Show Lateral Tuning Settings",
+    "description": "Show Subaru lateral tuning settings. Hidden controls keep their saved values active."
+  },
+  "MCSubaruShowAdvancedDevControls": {
+    "title": "Show Advanced Dev Controls",
+    "description": "Show experimental Subaru steering controls for controlled testing. These can make the car request much more steering and may produce LKAS faults if used carelessly."
+  },
+  "MCSubaruMaxSteeringExperiment": {
+    "title": "MAX Steering Experiment",
+    "description": "Experimental controlled-test preset for maximum Subaru MADS-only steering capability. Enabling stores your current values, then sets MADS steering angle cap to 199, turn-in rate to L20 500 deg/s, unwind rate to L20 500 deg/s, and manual yield torque threshold to 500. Turning it off restores the saved values. This may produce LKAS faults and should not be used outside controlled environments."
   },
   "MCSubaruMatchVehicleSpeedometer": {
     "title": "Match Vehicle Speedometer",
@@ -385,10 +393,6 @@
     "max": 500,
     "step": 5
   },
-  "MCSubaruManualYieldFilteredDetectionEnabled": {
-    "title": "Filtered Yield Detection",
-    "description": "Use Ford-style filtering for Subaru manual-yield detection so light hand torque can stay latched through brief torque dropouts. This keeps the selected torque threshold, but requires persistent input before latching."
-  },
   "MCSubaruManualYieldResumeSoftnessEnabled": {
     "title": "Custom Resume Softness",
     "description": "Enable a custom post-manual-yield steering reclaim ramp. When off, no SubiPilot reclaim ramp is applied and your saved softness selection is kept for later testing."
@@ -431,10 +435,9 @@
   },
   "MCSubaruMadsMaxSteeringAngle": {
     "title": "MADS Steering Angle Cap",
-    "description": "Choose the Subaru MADS lateral-only requested steering angle cap. 120 deg is stock/current behavior. Higher values allow more MADS-only turning above 15 mph. Below 8 mph, Subaru fault protection limits the active cap to 180 deg; between 8 and 15 mph it ramps up to the selected value. The cap also remains a measured-angle guard. 545 deg is the existing angle-LKAS safety maximum, not unlimited.",
+    "description": "Choose the Subaru MADS lateral-only requested steering angle cap. 180 deg is the default turning request limit, and MAX Steering Experiment sets 199 deg. Below 8 mph, Subaru fault protection limits the active cap to 180 deg; between 8 and 15 mph it ramps up to the selected value. The cap also remains a measured-angle guard. 545 deg is the existing angle-LKAS safety maximum, not unlimited.",
     "options": [
-      { "value": 120, "label": "120 - Stock" },
-      { "value": 180, "label": "180" },
+      { "value": 180, "label": "180 - Default" },
       { "value": 190, "label": "190" },
       { "value": 199, "label": "199" },
       { "value": 200, "label": "200" },
@@ -442,7 +445,7 @@
       { "value": 360, "label": "360" },
       { "value": 545, "label": "545 - Max Safe" }
     ],
-    "min": 120,
+    "min": 180,
     "max": 545,
     "step": 1
   },
