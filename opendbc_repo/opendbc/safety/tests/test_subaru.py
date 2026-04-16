@@ -236,7 +236,7 @@ class TestSubaruAngleSafety(TestSubaruSafetyBase, common.AngleSteeringSafetyTest
   STEER_ANGLE_MAX = 545
   DEG_TO_CAN = 100
   ANGLE_RATE_BP = [0., 5., 35.]
-  ANGLE_RATE_UP = [5., .8, .15]
+  ANGLE_RATE_UP = [5., 10.0, .15]
   ANGLE_RATE_DOWN = [5., 10.0, .15]
 
   def _angle_cmd_msg(self, angle: float, enabled: bool, increment_timer: bool = True):
@@ -267,12 +267,15 @@ class TestSubaruAngleSafety(TestSubaruSafetyBase, common.AngleSteeringSafetyTest
 
     self.assertFalse(self._tx(self._angle_cmd_msg(89.0, True)))
 
-  def test_angle_lkas_safety_keeps_windup_table_stock(self):
+  def test_angle_lkas_safety_allows_max_test_windup_delta(self):
     self._prime_angle_command(speed=5.0, angle=100.0)
-    self.assertTrue(self._tx(self._angle_cmd_msg(100.8, True)))
 
+    self.assertTrue(self._tx(self._angle_cmd_msg(110.0, True)))
+
+  def test_angle_lkas_safety_rejects_above_max_test_windup_delta(self):
     self._prime_angle_command(speed=5.0, angle=100.0)
-    self.assertFalse(self._tx(self._angle_cmd_msg(103.0, True)))
+
+    self.assertFalse(self._tx(self._angle_cmd_msg(111.0, True)))
 
 
 class TestSubaruGen1TorqueStockLongitudinalSafety(TestSubaruStockLongitudinalSafetyBase, TestSubaruTorqueSafetyBase):

@@ -28,6 +28,9 @@ from opendbc.car.subaru.carcontroller import (
   MADS_ONLY_MAX_STEER_ANGLE_MAX,
   MADS_ONLY_MIN_SPEED,
   SOFT_CAPTURE_LEVEL_PARAMS,
+  SUBARU_TURN_IN_RATE_LEVEL_MAX,
+  SUBARU_TURN_IN_RATE_LEVEL_MIN,
+  SUBARU_TURN_IN_RATE_LEVEL_VALUES,
   SUBARU_UNWIND_RATE_LEVEL_MAX,
   SUBARU_UNWIND_RATE_LEVEL_MIN,
   SUBARU_UNWIND_RATE_LEVEL_VALUES,
@@ -58,6 +61,7 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruMadsTighterTurnsEnabled",
     "MCSubaruMadsMaxSteeringAngle",
     "MCSubaruUnwindRateLevel",
+    "MCSubaruTurnInRateLevel",
   )
 
   def setUp(self):
@@ -92,7 +96,7 @@ class TestSubaruCarController(unittest.TestCase):
                         resume_softness_enabled=False, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2,
                         mads_tighter_turns_enabled=False, mads_max_steering_angle=120,
-                        unwind_rate_level=0):
+                        unwind_rate_level=0, turn_in_rate_level=0):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
@@ -101,6 +105,7 @@ class TestSubaruCarController(unittest.TestCase):
     self.params.put_bool("MCSubaruMadsTighterTurnsEnabled", mads_tighter_turns_enabled)
     self.params.put("MCSubaruMadsMaxSteeringAngle", str(mads_max_steering_angle))
     self.params.put("MCSubaruUnwindRateLevel", str(unwind_rate_level))
+    self.params.put("MCSubaruTurnInRateLevel", str(turn_in_rate_level))
     if resume_softness_setting is not None:
       self.params.put("MCSubaruManualYieldResumeSoftness", str(resume_softness_setting))
     CP = CarInterface.get_non_essential_params(CAR.SUBARU_OUTBACK_2023)
@@ -1129,6 +1134,69 @@ class TestSubaruCarController(unittest.TestCase):
         controller = self._build_controller(unwind_rate_level=level)
         windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, controller._get_active_angle_limits())
         self.assertAlmostEqual(windup, stock_windup)
+
+  def test_subaru_turn_in_rate_level_zero_matches_stock_angle_limits(self):
+    controller = self._build_controller(turn_in_rate_level=0)
+
+    full_limits = controller._get_active_angle_limits(mads_only=False)
+    mads_limits = controller._get_active_angle_limits(mads_only=True)
+
+    self.assertEqual(full_limits.ANGLE_RATE_LIMIT_UP, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP)
+    self.assertEqual(full_limits.ANGLE_RATE_LIMIT_DOWN, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN)
+    self.assertEqual(mads_limits.ANGLE_RATE_LIMIT_UP, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP)
+    self.assertEqual(mads_limits.ANGLE_RATE_LIMIT_DOWN, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN)
+
+  def test_subaru_turn_in_rate_level_updates_only_mads_windup_limit(self):
+    for level, expected_mid in enumerate(SUBARU_TURN_IN_RATE_LEVEL_VALUES):
+      with self.subTest(level=level):
+        controller = self._build_controller(turn_in_rate_level=level)
+
+        full_limits = controller._get_active_angle_limits(mads_only=False)
+        mads_limits = controller._get_active_angle_limits(mads_only=True)
+
+        self.assertEqual(full_limits.ANGLE_RATE_LIMIT_UP, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP)
+        self.assertEqual(full_limits.ANGLE_RATE_LIMIT_DOWN, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN)
+        self.assertEqual(mads_limits.ANGLE_RATE_LIMIT_UP[0], controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP[0])
+        self.assertEqual(mads_limits.ANGLE_RATE_LIMIT_UP[1], [5.0, expected_mid, 0.15])
+        self.assertEqual(mads_limits.ANGLE_RATE_LIMIT_DOWN, controller.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN)
+
+  def test_subaru_turn_in_rate_level_clamps_saved_values(self):
+    below = self._build_controller(turn_in_rate_level=-5)
+    above = self._build_controller(turn_in_rate_level=99)
+
+    self.assertEqual(below.mc_subaru_turn_in_rate_level, SUBARU_TURN_IN_RATE_LEVEL_MIN)
+    self.assertEqual(below._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_UP[1], [5.0, SUBARU_TURN_IN_RATE_LEVEL_VALUES[0], 0.15])
+    self.assertEqual(above.mc_subaru_turn_in_rate_level, SUBARU_TURN_IN_RATE_LEVEL_MAX)
+    self.assertEqual(above._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_UP[1], [5.0, SUBARU_TURN_IN_RATE_LEVEL_VALUES[-1], 0.15])
+
+  def test_subaru_turn_in_and_unwind_rate_levels_are_independent(self):
+    turn_in_only = self._build_controller(turn_in_rate_level=20, unwind_rate_level=0)
+    unwind_only = self._build_controller(turn_in_rate_level=0, unwind_rate_level=20)
+    both = self._build_controller(turn_in_rate_level=20, unwind_rate_level=20)
+
+    self.assertEqual(turn_in_only._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_UP[1], [5.0, 10.0, 0.15])
+    self.assertEqual(turn_in_only._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_DOWN, turn_in_only.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_DOWN)
+    self.assertEqual(unwind_only._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_UP, unwind_only.p.ANGLE_LIMITS.ANGLE_RATE_LIMIT_UP)
+    self.assertEqual(unwind_only._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_DOWN[1], [5.0, 10.0, 0.15])
+    self.assertEqual(both._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_UP[1], [5.0, 10.0, 0.15])
+    self.assertEqual(both._get_active_angle_limits(mads_only=True).ANGLE_RATE_LIMIT_DOWN[1], [5.0, 10.0, 0.15])
+
+  def test_subaru_turn_in_rate_level_changes_only_mads_turn_in_delta(self):
+    stock = self._build_controller(turn_in_rate_level=0)
+    high = self._build_controller(turn_in_rate_level=20)
+    prev_angle = 100.0
+    speed = 5.0
+    measured_angle = 100.0
+
+    stock_mads_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, stock._get_active_angle_limits(mads_only=True))
+    high_mads_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits(mads_only=True))
+    high_full_windup = apply_std_steer_angle_limits(200.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits(mads_only=False))
+    high_mads_unwind = apply_std_steer_angle_limits(0.0, prev_angle, speed, measured_angle, True, high._get_active_angle_limits(mads_only=True))
+
+    self.assertAlmostEqual(stock_mads_windup, 100.8)
+    self.assertAlmostEqual(high_mads_windup, 110.0)
+    self.assertAlmostEqual(high_full_windup, stock_mads_windup)
+    self.assertAlmostEqual(high_mads_unwind, 99.2)
 
   def test_manual_yield_torque_threshold_only_changes_when_enabled(self):
     disabled = self._build_carstate(torque_threshold_enabled=False, torque_threshold=MANUAL_YIELD_TORQUE_THRESHOLD_MAX)

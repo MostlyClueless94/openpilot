@@ -41,6 +41,8 @@ def test_mc_custom_hosts_simplified_subaru_controls_at_the_end_of_the_page():
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
   assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
   assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
+  assert 'param="MCSubaruTurnInRateLevel"' in source
+  assert '"Turn-In Rate"' in source
   assert 'param="MCSubaruSoftCaptureEnabled"' in source
   assert 'param="MCSubaruSoftCaptureLevel"' in source
   assert 'Subaru Delay Tweak (Test)' not in source
@@ -75,6 +77,7 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_mads_tighter_turns.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_mads_steering_angle_cap.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._subaru_turn_in_rate_level.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_soft_capture.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_resume_softness.action_item.set_enabled(resume_softness_enabled)' in source
@@ -92,6 +95,7 @@ def test_mc_custom_always_shows_subaru_section_and_preserves_tuning_logic():
   assert 'self._subaru_mads_tighter_turns.action_item.set_state(mads_tighter_turns_enabled)' in source
   assert 'self._manual_yield_torque_threshold.action_item.current_value = self._manual_yield_torque_threshold_index(' in source
   assert 'self._subaru_mads_steering_angle_cap.action_item.current_value = self._mads_steering_angle_cap_index(' in source
+  assert 'self._subaru_turn_in_rate_level.action_item.current_value = max(' in source
   assert 'self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)' in source
   assert 'self._manual_yield_torque_threshold.action_item.set_enabled(torque_threshold_enabled)' in source
   assert 'self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))' in source
@@ -119,6 +123,7 @@ def test_params_keys_register_simplified_subaru_tuning_defaults_for_mc_custom_me
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in source
   assert '{"MCSubaruMadsTighterTurnsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "120"}}' in source
+  assert '{"MCSubaruTurnInRateLevel", {PERSISTENT | BACKUP, INT, "0"}}' in source
   assert '{"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in source
   assert '{"SubaruStopAndGo", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
@@ -173,6 +178,11 @@ def test_params_metadata_describes_simplified_subaru_tuning_ranges_and_labels():
   assert '"title": "Tighter MADS Turns"' in source
   assert '"MCSubaruMadsMaxSteeringAngle"' in source
   assert '"title": "MADS Steering Angle Cap"' in source
+  assert '"MCSubaruTurnInRateLevel"' in source
+  assert '"title": "MC Custom: Subaru Turn-In Rate Level"' in source
+  assert 'MADS-only turn-in rate ladder' in source
+  assert '"label": "L0 Stock"' in source
+  assert '"label": "L20 500 deg/s"' in source
   assert 'requested steering angle' in source
   assert 'measured-angle guard' in source
   assert 'low-speed fault protection' in source

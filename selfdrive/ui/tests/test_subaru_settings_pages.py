@@ -99,6 +99,7 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'param="MCSubaruMadsTighterTurnsEnabled"' in source
   assert 'param="MCSubaruMadsMaxSteeringAngle"' in source
   assert 'param="MCSubaruUnwindRateLevel"' in source
+  assert 'param="MCSubaruTurnInRateLevel"' in source
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
   assert "4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0," in source
   assert "MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (" in source
@@ -112,10 +113,14 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert '"Release Guard Strength"' in source
   assert '"Tighter MADS Turns"' in source
   assert '"MADS Steering Angle Cap"' in source
+  assert '"Turn-In Rate"' in source
   assert '"Unwind Rate"' in source
   assert '"Unwind Rate Level"' not in source
   assert "SUBARU_UNWIND_RATE_LEVEL_LABELS = (" in source
+  assert "SUBARU_TURN_IN_RATE_LEVEL_VALUES = SUBARU_UNWIND_RATE_LEVEL_VALUES" in source
+  assert "SUBARU_TURN_IN_RATE_LEVEL_LABELS = SUBARU_UNWIND_RATE_LEVEL_LABELS" in source
   assert "return tr(SUBARU_UNWIND_RATE_LEVEL_LABELS[idx])" in source
+  assert "return tr(SUBARU_TURN_IN_RATE_LEVEL_LABELS[idx])" in source
   for label in COMPACT_SUBARU_UNWIND_RATE_LABELS:
     assert f'"{label}"' in source
   assert "Level 0 - Stock (" not in source
@@ -124,6 +129,8 @@ def test_tici_mc_custom_subaru_section_hosts_speedometer_toggle():
   assert 'measured-angle guard' in source
   assert 'low-speed fault protection' in source
   assert 'turn-in behavior and the 545 deg angle cap stay unchanged' in source
+  assert 'MADS-only turn-in rate ladder' in source
+  assert 'full engaged lateral stay unchanged' in source
   assert 'Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz' in source
   assert 'Full Manual Yield Release' not in source
   assert 'MCSubaruManualYieldFullReleaseEnabled' not in source
@@ -168,11 +175,17 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'BigParamControl("tighter MADS\\nturns", "MCSubaruMadsTighterTurnsEnabled")' in source
   assert 'BigButton("MADS steering\\nangle cap")' in source
   assert "MADS_STEERING_ANGLE_CAP_VALUES = (120, 180, 190, 199, 200, 240, 360, 545)" in source
+  assert 'BigButton("turn-in rate\\nlevel")' in source
+  assert '"MCSubaruTurnInRateLevel"' in source
   assert 'BigButton("unwind rate\\nlevel")' in source
   assert '"MCSubaruUnwindRateLevel"' in source
   assert "4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 9.0, 10.0," in source
   assert "SUBARU_UNWIND_RATE_LEVEL_LABELS = (" in source
+  assert "SUBARU_TURN_IN_RATE_LEVEL_VALUES = SUBARU_UNWIND_RATE_LEVEL_VALUES" in source
+  assert "SUBARU_TURN_IN_RATE_LEVEL_LABELS = SUBARU_UNWIND_RATE_LEVEL_LABELS" in source
+  assert "list(range(len(SUBARU_TURN_IN_RATE_LEVEL_VALUES)))" in source
   assert "list(range(len(SUBARU_UNWIND_RATE_LEVEL_VALUES)))" in source
+  assert "return SUBARU_TURN_IN_RATE_LEVEL_LABELS[idx]" in source
   assert "return SUBARU_UNWIND_RATE_LEVEL_LABELS[idx]" in source
   for label in COMPACT_SUBARU_UNWIND_RATE_LABELS:
     assert f'"{label}"' in source
@@ -187,6 +200,7 @@ def test_mici_subaru_layout_contains_driving_only_subaru_controls():
   assert 'list(range(7))' in source
   assert 'list(range(1, 4))' in source
   assert 'list(MADS_STEERING_ANGLE_CAP_VALUES)' in source
+  assert 'list(range(len(SUBARU_TURN_IN_RATE_LEVEL_VALUES)))' in source
   assert 'list(range(1, 6))' in source
   assert 'BigParamControl("subaru steering\\nsmoothing", "MCSubaruSmoothingTune")' not in source
   assert 'BigButton("smoothing\\nstrength")' not in source
@@ -250,6 +264,7 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   assert 'self._manual_yield_release_guard_btn.set_visible(enabled)' in source
   assert 'self._subaru_mads_tighter_turns_toggle.set_visible(enabled)' in source
   assert 'self._subaru_mads_steering_angle_cap_btn.set_visible(enabled)' in source
+  assert 'self._subaru_turn_in_rate_level_btn.set_visible(enabled)' in source
   assert 'self._subaru_unwind_rate_level_btn.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_toggle.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_strength_btn.set_visible(enabled)' in source
@@ -257,6 +272,7 @@ def test_mici_subaru_layout_uses_safe_bool_reads_and_advanced_tuning_visibility(
   assert 'self._format_resume_softness_label(max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6)))' in source
   assert 'self._format_release_guard_label(max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3)))' in source
   assert 'self._format_mads_steering_angle_cap_label(' in source
+  assert 'self._format_subaru_turn_in_rate_label(' in source
   assert 'self._format_subaru_unwind_rate_label(' in source
   assert 'self._format_soft_capture_label(max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5)))' in source
   assert "smoothing_enabled" not in source
@@ -280,6 +296,7 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '{"MCSubaruMadsTighterTurnsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "120"}}' in params_source
   assert '{"MCSubaruUnwindRateLevel", {PERSISTENT | BACKUP, INT, "0"}}' in params_source
+  assert '{"MCSubaruTurnInRateLevel", {PERSISTENT | BACKUP, INT, "0"}}' in params_source
   assert '{"MCSubaruSoftCaptureEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in params_source
   assert '{"Subaru11BluePilotTuningMigrated", {PERSISTENT | BACKUP, STRING, "0.0"}}' in params_source
@@ -301,11 +318,18 @@ def test_subaru_params_and_metadata_match_brand_scoped_defaults():
   assert '"MCSubaruMadsTighterTurnsEnabled"' in metadata_source
   assert '"MCSubaruMadsMaxSteeringAngle"' in metadata_source
   assert '"MCSubaruUnwindRateLevel"' in metadata_source
+  assert '"MCSubaruTurnInRateLevel"' in metadata_source
   assert 'requested steering angle' in metadata_source
   assert 'measured-angle guard' in metadata_source
   assert 'low-speed fault protection' in metadata_source
   assert 'Below 8 mph' in metadata_source
   assert 'low-speed LKAS fault threshold' in metadata_source
+  assert 'MADS-only turn-in rate ladder' in metadata_source
+  assert 'full engaged lateral stay unchanged' in metadata_source
+  assert '"label": "L0 Stock"' in metadata_source
+  assert '"label": "L6 120 deg/s"' in metadata_source
+  assert '"label": "L10 200 deg/s"' in metadata_source
+  assert '"label": "L20 500 deg/s"' in metadata_source
   assert '"label": "Level 0 - Stock (0.8/frame, 40 deg/s @ 11 mph)"' in metadata_source
   assert '"label": "Level 6 - 2.4/frame, 120 deg/s @ 11 mph"' in metadata_source
   assert '"label": "Level 10 - 4.0/frame, 200 deg/s @ 11 mph"' in metadata_source

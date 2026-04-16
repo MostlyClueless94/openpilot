@@ -46,6 +46,11 @@ SUBARU_UNWIND_RATE_DESC = (
   "Aggressive test-only Subaru angle-LKAS return-to-center rate ladder. Level 0 is stock. Higher levels increase only "
   + "unwind rate; turn-in behavior and the 545 deg angle cap stay unchanged. Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz."
 )
+SUBARU_TURN_IN_RATE_DESC = (
+  "Aggressive test-only Subaru angle-LKAS MADS-only turn-in rate ladder. Level 0 is stock. Higher levels increase only "
+  + "wind-up rate while MADS-only is requesting steering away from center; unwind rate, angle caps, and full engaged lateral stay unchanged. "
+  + "Full ladder maps 0.8 to 10.0 deg/frame at 50 Hz."
+)
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
   + "threshold for your platform while keeping your saved test value. Settings near the minimum may falsely detect manual "
@@ -131,6 +136,8 @@ SUBARU_UNWIND_RATE_LEVEL_LABELS = (
   "L19 450 deg/s",
   "L20 500 deg/s",
 )
+SUBARU_TURN_IN_RATE_LEVEL_VALUES = SUBARU_UNWIND_RATE_LEVEL_VALUES
+SUBARU_TURN_IN_RATE_LEVEL_LABELS = SUBARU_UNWIND_RATE_LEVEL_LABELS
 
 
 class MCCustomLayout(Widget):
@@ -276,6 +283,16 @@ class MCCustomLayout(Widget):
       label_callback=self._format_subaru_unwind_rate_label,
       inline=False,
     )
+    self._subaru_turn_in_rate_level = option_item_sp(
+      title=lambda: tr("Turn-In Rate"),
+      description=lambda: tr(SUBARU_TURN_IN_RATE_DESC),
+      param="MCSubaruTurnInRateLevel",
+      min_value=0,
+      max_value=len(SUBARU_TURN_IN_RATE_LEVEL_VALUES) - 1,
+      value_change_step=1,
+      label_callback=self._format_subaru_turn_in_rate_label,
+      inline=False,
+    )
     self._subaru_soft_capture = toggle_item_sp(
       title=lambda: tr("Soft-Capture Engage Blend"),
       description=lambda: tr(SOFT_CAPTURE_DESC),
@@ -311,6 +328,7 @@ class MCCustomLayout(Widget):
       self._manual_yield_release_guard_level,
       self._subaru_mads_tighter_turns,
       self._subaru_mads_steering_angle_cap,
+      self._subaru_turn_in_rate_level,
       self._subaru_unwind_rate_level,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
@@ -366,6 +384,11 @@ class MCCustomLayout(Widget):
     return tr(SUBARU_UNWIND_RATE_LEVEL_LABELS[idx])
 
   @staticmethod
+  def _format_subaru_turn_in_rate_label(value: int) -> str:
+    idx = max(0, min(value, len(SUBARU_TURN_IN_RATE_LEVEL_LABELS) - 1))
+    return tr(SUBARU_TURN_IN_RATE_LEVEL_LABELS[idx])
+
+  @staticmethod
   def _mads_steering_angle_cap_index(value: int) -> int:
     return min(
       range(len(MADS_STEERING_ANGLE_CAP_VALUES)),
@@ -385,6 +408,7 @@ class MCCustomLayout(Widget):
     self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)
     self._subaru_mads_tighter_turns.set_visible(advanced_tuning_enabled)
     self._subaru_mads_steering_angle_cap.set_visible(advanced_tuning_enabled)
+    self._subaru_turn_in_rate_level.set_visible(advanced_tuning_enabled)
     self._subaru_unwind_rate_level.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
@@ -412,6 +436,10 @@ class MCCustomLayout(Widget):
     self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))
     self._subaru_mads_steering_angle_cap.action_item.current_value = self._mads_steering_angle_cap_index(
       self._get_int_param("MCSubaruMadsMaxSteeringAngle", 120)
+    )
+    self._subaru_turn_in_rate_level.action_item.current_value = max(
+      0,
+      min(self._get_int_param("MCSubaruTurnInRateLevel"), len(SUBARU_TURN_IN_RATE_LEVEL_VALUES) - 1),
     )
     self._subaru_unwind_rate_level.action_item.current_value = max(
       0,

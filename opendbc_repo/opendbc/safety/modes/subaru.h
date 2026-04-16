@@ -188,7 +188,8 @@ static bool subaru_tx_hook(const CANPacket_t *msg) {
     .angle_deg_to_can = 100.,
     .angle_rate_up_lookup = {
       {0.0, 5.0, 35.0},
-      {5.0, 0.8, 0.15},
+      // BluePilot: allow the MC Subaru MADS-only turn-in rate test ladder ceiling.
+      {5.0, 10.0, 0.15},
     },
     .angle_rate_down_lookup = {
       {0.0, 5.0, 35.0},

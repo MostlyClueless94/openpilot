@@ -154,6 +154,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruUnwindRateTest", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruUnwindRateMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"MCSubaruUnwindRateLevel", {PERSISTENT | BACKUP, INT, "0"}},
+    {"MCSubaruTurnInRateLevel", {PERSISTENT | BACKUP, INT, "0"}},
     {"MCSubaruActuatorDelayTest", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},
