@@ -42,8 +42,9 @@ RELEASE_GUARD_STRENGTH_DESC = (
 )
 MANUAL_STEERING_SOFT_HOLD_DESC = (
   "After Subaru angle-LKAS detects real manual steering, temporarily accepts softer hand pressure as continued "
-  + "manual steering. This does not make initial manual-yield easier and does not change steering rate limits, "
-  + "MADS angle caps, or MAX Steering Experiment values."
+  + "manual steering. L1 is the lightest adjustment and still needs the most hand pressure; L3 is the strongest "
+  + "hold and accepts the lightest hand pressure for longer. This does not make initial manual-yield easier and "
+  + "does not change steering rate limits, MADS angle caps, or MAX Steering Experiment values."
 )
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "

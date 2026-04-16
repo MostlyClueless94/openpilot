@@ -218,6 +218,8 @@ def test_subaru_params_and_metadata_match_lateral_menu_rework():
   assert '"MCSubaruManualSteeringSoftHoldLevel"' in metadata_source
   assert '"title": "Manual Steering Hold"' in metadata_source
   assert '"label": "L1 Light"' in metadata_source
+  assert 'L1 is the lightest adjustment and still needs the most hand pressure' in metadata_source
+  assert 'L3 is the strongest hold and accepts the lightest hand pressure for longer' in metadata_source
   assert 'does not make initial manual-yield easier' in metadata_source
   assert 'MADS steering angle cap to 199' in metadata_source
   assert '180 deg is the default turning request limit' in metadata_source

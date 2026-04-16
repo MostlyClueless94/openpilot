@@ -144,6 +144,8 @@ def test_params_metadata_describes_subaru_lateral_menu_rework():
   assert '"MCSubaruManualSteeringSoftHoldLevel"' in source
   assert '"title": "Manual Steering Hold"' in source
   assert '"label": "L3 Strong"' in source
+  assert 'L1 is the lightest adjustment and still needs the most hand pressure' in source
+  assert 'L3 is the strongest hold and accepts the lightest hand pressure for longer' in source
   assert 'does not make initial manual-yield easier' in source
   assert '"MCSubaruSoftCaptureEnabled"' in source
   assert '"title": "Soft-Capture Engage Blend"' in source
