@@ -136,10 +136,10 @@ class SubaruLayoutMici(NavScroller):
       self._manual_yield_torque_threshold_btn,
       self._manual_yield_resume_softness_toggle,
       self._manual_yield_resume_softness_btn,
-      self._manual_yield_release_guard_toggle,
-      self._manual_yield_release_guard_btn,
       self._subaru_soft_capture_toggle,
       self._subaru_soft_capture_strength_btn,
+      self._manual_yield_release_guard_toggle,
+      self._manual_yield_release_guard_btn,
       self._subaru_advanced_dev_controls_toggle,
       self._subaru_max_steering_experiment_toggle,
     ]

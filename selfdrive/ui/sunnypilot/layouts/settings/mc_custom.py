@@ -271,10 +271,10 @@ class MCCustomLayout(Widget):
       self._manual_yield_torque_threshold,
       self._manual_yield_resume_softness_enabled,
       self._manual_yield_resume_softness,
-      self._manual_yield_release_guard_enabled,
-      self._manual_yield_release_guard_level,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
+      self._manual_yield_release_guard_enabled,
+      self._manual_yield_release_guard_level,
       self._subaru_advanced_dev_controls,
       self._subaru_max_steering_experiment,
     ]

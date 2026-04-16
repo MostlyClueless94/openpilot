@@ -42,6 +42,13 @@ def test_mc_custom_hosts_exact_subaru_lateral_tuning_controls():
   assert '"MAX Steering Experiment"' in source
   assert '"MCSubaruMaxSteeringExperiment"' in source
   assert '"MCSubaruMaxSteeringExperimentSnapshot"' in source
+  assert (
+    "self._subaru_soft_capture,\n"
+    "      self._subaru_soft_capture_strength,\n"
+    "      self._manual_yield_release_guard_enabled,\n"
+    "      self._manual_yield_release_guard_level,\n"
+    "      self._subaru_advanced_dev_controls,"
+  ) in source
 
   assert 'param="MCSubaruManualYieldFilteredDetectionEnabled"' not in source
   assert '"Filtered Yield Detection"' not in source

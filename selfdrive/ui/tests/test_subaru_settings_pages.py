@@ -66,6 +66,13 @@ def test_tici_mc_custom_subaru_lateral_menu_matches_requested_controls():
   assert 'param="MCSubaruSoftCaptureLevel"' in source
   assert '"Soft-Capture Engage Blend"' in source
   assert '"Soft-Capture Strength"' in source
+  assert (
+    "self._subaru_soft_capture,\n"
+    "      self._subaru_soft_capture_strength,\n"
+    "      self._manual_yield_release_guard_enabled,\n"
+    "      self._manual_yield_release_guard_level,\n"
+    "      self._subaru_advanced_dev_controls,"
+  ) in source
 
   assert '"MAX Steering Experiment"' in source
   assert '"MCSubaruMaxSteeringExperiment"' in source
@@ -128,6 +135,13 @@ def test_mici_subaru_layout_exact_lateral_menu_and_max_experiment():
   assert 'BigButton("release guard\\nstrength")' in source
   assert 'BigParamControl("soft-capture\\nengage blend", "MCSubaruSoftCaptureEnabled")' in source
   assert 'BigButton("soft-capture\\nstrength")' in source
+  assert (
+    "self._subaru_soft_capture_toggle,\n"
+    "      self._subaru_soft_capture_strength_btn,\n"
+    "      self._manual_yield_release_guard_toggle,\n"
+    "      self._manual_yield_release_guard_btn,\n"
+    "      self._subaru_advanced_dev_controls_toggle,"
+  ) in source
   assert 'BigParamControl("show advanced\\ndev controls", "MCSubaruShowAdvancedDevControls")' in source
   assert 'BigToggle(' in source
   assert '"MAX steering\\nexperiment"' in source
