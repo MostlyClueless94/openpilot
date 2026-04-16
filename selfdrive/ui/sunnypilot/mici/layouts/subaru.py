@@ -26,6 +26,7 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
+MANUAL_STEERING_SOFT_HOLD_LABELS = ["Off", "L1 Light", "L2 Medium", "L3 Strong"]
 SOFT_CAPTURE_STRENGTH_LABELS = ["1 - Light", "2 - Mild", "3 - Medium", "4 - Strong", "5 - Max"]
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
@@ -115,6 +116,15 @@ class SubaruLayoutMici(NavScroller):
         self._format_release_guard_label,
       )
     )
+    self._manual_steering_soft_hold_btn = BigButton("manual steering\nhold")
+    self._manual_steering_soft_hold_btn.set_click_callback(
+      lambda: self._show_value_selector(
+        self._manual_steering_soft_hold_btn,
+        "MCSubaruManualSteeringSoftHoldLevel",
+        list(range(4)),
+        self._format_manual_steering_soft_hold_label,
+      )
+    )
     self._subaru_soft_capture_strength_btn = BigButton("soft-capture\nstrength")
     self._subaru_soft_capture_strength_btn.set_click_callback(
       lambda: self._show_value_selector(
@@ -138,6 +148,7 @@ class SubaruLayoutMici(NavScroller):
       self._manual_yield_resume_softness_btn,
       self._subaru_soft_capture_toggle,
       self._subaru_soft_capture_strength_btn,
+      self._manual_steering_soft_hold_btn,
       self._manual_yield_release_guard_toggle,
       self._manual_yield_release_guard_btn,
       self._subaru_advanced_dev_controls_toggle,
@@ -186,6 +197,10 @@ class SubaruLayoutMici(NavScroller):
   @staticmethod
   def _format_release_guard_label(value: int) -> str:
     return RELEASE_GUARD_LEVEL_LABELS[max(0, min(value - 1, len(RELEASE_GUARD_LEVEL_LABELS) - 1))]
+
+  @staticmethod
+  def _format_manual_steering_soft_hold_label(value: int) -> str:
+    return MANUAL_STEERING_SOFT_HOLD_LABELS[max(0, min(value, len(MANUAL_STEERING_SOFT_HOLD_LABELS) - 1))]
 
   @staticmethod
   def _clamp_manual_yield_torque_threshold(value: int) -> int:
@@ -272,6 +287,7 @@ class SubaruLayoutMici(NavScroller):
     self._manual_yield_resume_softness_btn.set_visible(enabled)
     self._manual_yield_release_guard_toggle.set_visible(enabled)
     self._manual_yield_release_guard_btn.set_visible(enabled)
+    self._manual_steering_soft_hold_btn.set_visible(enabled)
     self._subaru_soft_capture_toggle.set_visible(enabled)
     self._subaru_soft_capture_strength_btn.set_visible(enabled)
     self._subaru_advanced_dev_controls_toggle.set_visible(enabled)
@@ -346,6 +362,9 @@ class SubaruLayoutMici(NavScroller):
     )
     self._manual_yield_release_guard_btn.set_value(
       self._format_release_guard_label(max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3)))
+    )
+    self._manual_steering_soft_hold_btn.set_value(
+      self._format_manual_steering_soft_hold_label(max(0, min(self._get_int_param("MCSubaruManualSteeringSoftHoldLevel", 0), 3)))
     )
     self._subaru_soft_capture_strength_btn.set_value(
       self._format_soft_capture_label(max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5)))

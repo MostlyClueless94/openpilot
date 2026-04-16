@@ -62,6 +62,9 @@ def test_tici_mc_custom_subaru_lateral_menu_matches_requested_controls():
   assert 'param="MCSubaruManualYieldReleaseGuardEnabled"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
   assert '"Manual Yield Release Guard"' in source
+  assert 'param="MCSubaruManualSteeringSoftHoldLevel"' in source
+  assert '"Manual Steering Hold"' in source
+  assert "MANUAL_STEERING_SOFT_HOLD_LABELS = [\"Off\", \"L1 Light\", \"L2 Medium\", \"L3 Strong\"]" in source
   assert 'param="MCSubaruSoftCaptureEnabled"' in source
   assert 'param="MCSubaruSoftCaptureLevel"' in source
   assert '"Soft-Capture Engage Blend"' in source
@@ -69,6 +72,7 @@ def test_tici_mc_custom_subaru_lateral_menu_matches_requested_controls():
   assert (
     "self._subaru_soft_capture,\n"
     "      self._subaru_soft_capture_strength,\n"
+    "      self._manual_steering_soft_hold,\n"
     "      self._manual_yield_release_guard_enabled,\n"
     "      self._manual_yield_release_guard_level,\n"
     "      self._subaru_advanced_dev_controls,"
@@ -133,11 +137,15 @@ def test_mici_subaru_layout_exact_lateral_menu_and_max_experiment():
   assert 'BigButton("manual yield\\nresume softness")' in source
   assert 'BigParamControl("manual yield\\nrelease guard", "MCSubaruManualYieldReleaseGuardEnabled")' in source
   assert 'BigButton("release guard\\nstrength")' in source
+  assert 'BigButton("manual steering\\nhold")' in source
+  assert '"MCSubaruManualSteeringSoftHoldLevel"' in source
+  assert 'MANUAL_STEERING_SOFT_HOLD_LABELS = ["Off", "L1 Light", "L2 Medium", "L3 Strong"]' in source
   assert 'BigParamControl("soft-capture\\nengage blend", "MCSubaruSoftCaptureEnabled")' in source
   assert 'BigButton("soft-capture\\nstrength")' in source
   assert (
     "self._subaru_soft_capture_toggle,\n"
     "      self._subaru_soft_capture_strength_btn,\n"
+    "      self._manual_steering_soft_hold_btn,\n"
     "      self._manual_yield_release_guard_toggle,\n"
     "      self._manual_yield_release_guard_btn,\n"
     "      self._subaru_advanced_dev_controls_toggle,"
@@ -172,6 +180,7 @@ def test_mici_subaru_layout_visibility_matches_requested_menu_hierarchy():
   assert 'self._manual_yield_resume_softness_btn.set_visible(enabled)' in source
   assert 'self._manual_yield_release_guard_toggle.set_visible(enabled)' in source
   assert 'self._manual_yield_release_guard_btn.set_visible(enabled)' in source
+  assert 'self._manual_steering_soft_hold_btn.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_toggle.set_visible(enabled)' in source
   assert 'self._subaru_soft_capture_strength_btn.set_visible(enabled)' in source
   assert 'self._subaru_advanced_dev_controls_toggle.set_visible(enabled)' in source
@@ -194,6 +203,7 @@ def test_subaru_params_and_metadata_match_lateral_menu_rework():
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in params_source
+  assert '{"MCSubaruManualSteeringSoftHoldLevel", {PERSISTENT | BACKUP, INT, "0"}}' in params_source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in params_source
   assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "180"}}' in params_source
   assert '{"MCSubaruUnwindRateLevel", {PERSISTENT | BACKUP, INT, "0"}}' in params_source
@@ -205,6 +215,10 @@ def test_subaru_params_and_metadata_match_lateral_menu_rework():
   assert '"title": "Show Advanced Dev Controls"' in metadata_source
   assert '"MCSubaruMaxSteeringExperiment"' in metadata_source
   assert '"title": "MAX Steering Experiment"' in metadata_source
+  assert '"MCSubaruManualSteeringSoftHoldLevel"' in metadata_source
+  assert '"title": "Manual Steering Hold"' in metadata_source
+  assert '"label": "L1 Light"' in metadata_source
+  assert 'does not make initial manual-yield easier' in metadata_source
   assert 'MADS steering angle cap to 199' in metadata_source
   assert '180 deg is the default turning request limit' in metadata_source
   assert 'turn-in rate to L20 500 deg/s' in metadata_source

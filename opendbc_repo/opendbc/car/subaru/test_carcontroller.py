@@ -14,6 +14,9 @@ from opendbc.car.subaru.carcontroller import (
   ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS,
   ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS,
   ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS,
+  ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES,
+  ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MAX,
+  ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN,
   CarController,
   MADS_ONLY_FAULT_GUARD_HIGH_SPEED,
   MADS_ONLY_FAULT_GUARD_LOW_SPEED,
@@ -56,6 +59,7 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualYieldTorqueThresholdEnabled",
     "MCSubaruManualYieldTorqueThreshold",
     "MCSubaruManualYieldFilteredDetectionEnabled",
+    "MCSubaruManualSteeringSoftHoldLevel",
     "MCSubaruShowAdvancedDevControls",
     "MCSubaruMaxSteeringExperiment",
     "MCSubaruMaxSteeringExperimentSnapshot",
@@ -77,11 +81,13 @@ class TestSubaruCarController(unittest.TestCase):
       self.params.remove(key)
 
   @staticmethod
-  def _build_cs(v_ego_raw, steering_angle_deg, steering_pressed=False, standstill=False, steering_rate_deg=0.0):
+  def _build_cs(v_ego_raw, steering_angle_deg, steering_pressed=False, standstill=False,
+                steering_rate_deg=0.0, steering_torque=0.0):
     return SimpleNamespace(out=SimpleNamespace(
       vEgoRaw=v_ego_raw,
       steeringAngleDeg=steering_angle_deg,
       steeringRateDeg=steering_rate_deg,
+      steeringTorque=steering_torque,
       gearShifter=structs.CarState.GearShifter.drive,
       standstill=standstill,
       steeringPressed=steering_pressed,
@@ -99,12 +105,16 @@ class TestSubaruCarController(unittest.TestCase):
                         resume_softness_enabled=False, resume_softness_setting=None,
                         release_guard_enabled=False, release_guard_level=2,
                         mads_tighter_turns_enabled=False, mads_max_steering_angle=180,
-                        unwind_rate_level=0, turn_in_rate_level=0):
+                        unwind_rate_level=0, turn_in_rate_level=0,
+                        soft_hold_level=0, torque_threshold_enabled=False, torque_threshold=80):
     self.params.put_bool("MCSubaruSoftCaptureEnabled", soft_capture_enabled)
     self.params.put("MCSubaruSoftCaptureLevel", str(soft_capture_level))
     self.params.put_bool("MCSubaruManualYieldResumeSoftnessEnabled", resume_softness_enabled)
     self.params.put_bool("MCSubaruManualYieldReleaseGuardEnabled", release_guard_enabled)
     self.params.put("MCSubaruManualYieldReleaseGuardLevel", str(release_guard_level))
+    self.params.put("MCSubaruManualSteeringSoftHoldLevel", str(soft_hold_level))
+    self.params.put_bool("MCSubaruManualYieldTorqueThresholdEnabled", torque_threshold_enabled)
+    self.params.put("MCSubaruManualYieldTorqueThreshold", str(torque_threshold))
     self.params.put_bool("MCSubaruMadsTighterTurnsEnabled", mads_tighter_turns_enabled)
     self.params.put("MCSubaruMadsMaxSteeringAngle", str(mads_max_steering_angle))
     self.params.put("MCSubaruUnwindRateLevel", str(unwind_rate_level))
@@ -486,6 +496,157 @@ class TestSubaruCarController(unittest.TestCase):
     self.assertEqual(controller.angle_driver_override_ramp_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertEqual(controller.angle_driver_override_ramp_total_frames, ANGLE_DRIVER_OVERRIDE_RAMP_FRAMES)
     self.assertAlmostEqual(controller.angle_driver_override_ramp_softness_exponent, ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_EXPONENTS[6])
+
+  def test_manual_steering_soft_hold_level_zero_preserves_current_behavior(self):
+    controller = self._build_controller(soft_hold_level=0)
+    cc = self._build_cc(True, True, 14.0)
+    cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True, steering_torque=100.0)
+    controller.apply_angle_last = cs_pressed.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, cs_pressed)
+
+    self.assertEqual(controller.angle_driver_override_soft_hold_frames, 0)
+    self.assertEqual(controller.angle_driver_override_soft_hold_threshold, 0)
+
+    cs_released = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=50.0)
+    msg = controller.handle_angle_lateral(cc, cs_released)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs_released.out.steeringAngleDeg, False)
+
+    self.assertNotEqual(msg, inhibited)
+    self.assertFalse(controller.subaru_manual_yield_full_release_active)
+    self.assertGreater(controller.apply_angle_last, cs_released.out.steeringAngleDeg)
+
+  def test_manual_steering_soft_hold_levels_map_to_scaled_thresholds(self):
+    expected = {
+      1: (60, 25),
+      2: (50, 50),
+      3: (40, 75),
+    }
+
+    for level, (expected_threshold, expected_frames) in expected.items():
+      with self.subTest(level=level):
+        controller = self._build_controller(soft_hold_level=level)
+
+        self.assertEqual(controller.mc_subaru_manual_steering_soft_hold_level, level)
+        self.assertEqual(controller._get_soft_hold_threshold(80, level), expected_threshold)
+        self.assertEqual(ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[level], expected_frames)
+
+  def test_manual_steering_soft_hold_clamps_saved_level_and_threshold_floor(self):
+    below = self._build_controller(soft_hold_level=-3)
+    above = self._build_controller(soft_hold_level=99)
+
+    self.assertEqual(below.mc_subaru_manual_steering_soft_hold_level, ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN)
+    self.assertEqual(above.mc_subaru_manual_steering_soft_hold_level, ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MAX)
+    self.assertEqual(CarController._get_soft_hold_threshold(45, 3), MANUAL_YIELD_TORQUE_THRESHOLD_MIN)
+
+  def test_manual_steering_soft_hold_scales_from_custom_manual_yield_threshold(self):
+    controller = self._build_controller(
+      soft_hold_level=2,
+      torque_threshold_enabled=True,
+      torque_threshold=120,
+    )
+
+    self.assertEqual(controller._get_active_manual_yield_torque_threshold(), 120)
+    self.assertEqual(controller._get_soft_hold_threshold(120, 1), 90)
+    self.assertEqual(controller._get_soft_hold_threshold(120, 2), 70)
+    self.assertEqual(controller._get_soft_hold_threshold(120, 3), 60)
+
+  def test_manual_steering_soft_hold_does_not_make_initial_yield_easier(self):
+    controller = self._build_controller(soft_hold_level=2)
+    cc = self._build_cc(True, True, 14.0)
+    cs = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=50.0)
+    controller.apply_angle_last = cs.out.steeringAngleDeg
+
+    msg = controller.handle_angle_lateral(cc, cs)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs.out.steeringAngleDeg, False)
+
+    self.assertNotEqual(msg, inhibited)
+    self.assertFalse(controller.subaru_manual_yield_full_release_active)
+    self.assertEqual(controller.angle_driver_override_soft_hold_frames, 0)
+    self.assertGreater(controller.apply_angle_last, cs.out.steeringAngleDeg)
+
+  def test_manual_steering_soft_hold_accepts_light_pressure_after_real_press(self):
+    controller = self._build_controller(soft_hold_level=2)
+    cc = self._build_cc(True, True, 14.0)
+    cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True, steering_torque=100.0)
+    controller.apply_angle_last = cs_pressed.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, cs_pressed)
+    self.assertEqual(controller.angle_driver_override_soft_hold_frames, ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[2])
+    self.assertEqual(controller.angle_driver_override_soft_hold_threshold, 50)
+
+    cs_soft_pressure = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=50.0)
+    msg = controller.handle_angle_lateral(cc, cs_soft_pressure)
+    expected = subarucan.create_steering_control_angle(controller.packer, cs_soft_pressure.out.steeringAngleDeg, False)
+
+    self.assertEqual(msg, expected)
+    self.assertTrue(controller.subaru_manual_yield_full_release_active)
+    self.assertEqual(controller.angle_driver_override_soft_hold_frames, ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[2] - 1)
+    self.assertAlmostEqual(controller.apply_angle_last, cs_soft_pressure.out.steeringAngleDeg)
+
+  def test_manual_steering_soft_hold_low_pressure_does_not_refresh_window(self):
+    controller = self._build_controller(soft_hold_level=1)
+    cc = self._build_cc(True, True, 14.0)
+    cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True, steering_torque=100.0)
+    cs_soft_pressure = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=60.0)
+    controller.apply_angle_last = cs_pressed.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, cs_pressed)
+
+    for expected_frames in range(ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[1] - 1, -1, -1):
+      msg = controller.handle_angle_lateral(cc, cs_soft_pressure)
+      expected = subarucan.create_steering_control_angle(controller.packer, cs_soft_pressure.out.steeringAngleDeg, False)
+      self.assertEqual(msg, expected)
+      self.assertEqual(controller.angle_driver_override_soft_hold_frames, expected_frames)
+
+    msg = controller.handle_angle_lateral(cc, cs_soft_pressure)
+    inhibited = subarucan.create_steering_control_angle(controller.packer, cs_soft_pressure.out.steeringAngleDeg, False)
+
+    self.assertNotEqual(msg, inhibited)
+    self.assertFalse(controller.subaru_manual_yield_full_release_active)
+
+  def test_manual_steering_soft_hold_real_press_refreshes_window(self):
+    controller = self._build_controller(soft_hold_level=1)
+    cc = self._build_cc(True, True, 14.0)
+    cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True, steering_torque=100.0)
+    cs_soft_pressure = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=60.0)
+    controller.apply_angle_last = cs_pressed.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, cs_pressed)
+    for _ in range(10):
+      controller.handle_angle_lateral(cc, cs_soft_pressure)
+
+    self.assertLess(controller.angle_driver_override_soft_hold_frames, ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[1])
+
+    controller.handle_angle_lateral(cc, cs_pressed)
+
+    self.assertEqual(controller.angle_driver_override_soft_hold_frames, ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[1])
+
+  def test_manual_steering_soft_hold_flows_into_existing_release_guard_after_window_expires(self):
+    controller = self._build_controller(
+      soft_hold_level=1,
+      release_guard_enabled=True,
+      release_guard_level=2,
+      resume_softness_enabled=True,
+    )
+    cc = self._build_cc(True, True, 14.0)
+    cs_pressed = self._build_cs(8.0, 10.0, steering_pressed=True, steering_torque=100.0)
+    cs_soft_pressure = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=60.0)
+    cs_released = self._build_cs(8.0, 10.0, steering_pressed=False, steering_torque=0.0)
+    controller.apply_angle_last = cs_pressed.out.steeringAngleDeg
+
+    controller.handle_angle_lateral(cc, cs_pressed)
+    for _ in range(ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[1]):
+      controller.handle_angle_lateral(cc, cs_soft_pressure)
+
+    self.assertEqual(controller.angle_driver_override_soft_hold_frames, 0)
+    self.assertEqual(controller.angle_driver_override_hold_frames, ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES)
+
+    for _ in range(ANGLE_DRIVER_OVERRIDE_HOLD_FRAMES):
+      controller.handle_angle_lateral(cc, cs_released)
+
+    self.assertTrue(controller.angle_driver_override_release_guard_pending)
+    self.assertEqual(controller.angle_driver_override_ramp_frames, 0)
 
   def test_angle_driver_override_ramp_progresses_monotonically_toward_live_target_in_mads_only(self):
     controller = self._build_controller()
@@ -1052,6 +1213,8 @@ class TestSubaruCarController(unittest.TestCase):
 
     self.assertNotIn("MCSubaruMadsTighterTurnsEnabled", source)
     self.assertNotIn("MCSubaruMadsMaxSteeringAngle", source)
+    self.assertNotIn("MCSubaruManualSteeringSoftHoldLevel", source)
+    self.assertNotIn("angle_driver_override_soft_hold", source)
 
   def test_full_engaged_lateral_ignores_mads_only_low_speed_floor(self):
     controller = self._build_controller()

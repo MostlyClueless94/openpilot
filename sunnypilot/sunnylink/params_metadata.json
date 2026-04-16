@@ -429,6 +429,19 @@
     "max": 3,
     "step": 1
   },
+  "MCSubaruManualSteeringSoftHoldLevel": {
+    "title": "Manual Steering Hold",
+    "description": "Subaru angle-LKAS only. After real manual steering is detected, temporarily accepts softer hand pressure as continued manual steering so LKAS does not reassert during brief pressure drops. This does not make initial manual-yield easier and does not change steering rate limits, MADS angle caps, or MAX Steering Experiment values.",
+    "options": [
+      { "value": 0, "label": "Off" },
+      { "value": 1, "label": "L1 Light" },
+      { "value": 2, "label": "L2 Medium" },
+      { "value": 3, "label": "L3 Strong" }
+    ],
+    "min": 0,
+    "max": 3,
+    "step": 1
+  },
   "MCSubaruMadsTighterTurnsEnabled": {
     "title": "Tighter MADS Turns",
     "description": "Cap Subaru MADS lateral-only requested steering angle so tight-turn testing cannot request more than the selected value. Built-in low-speed fault protection shapes high caps down to 180 deg at or below 8 mph and temporarily releases LKAS during high-rate tight turns. This does not bypass panda safety or normal driving limits."

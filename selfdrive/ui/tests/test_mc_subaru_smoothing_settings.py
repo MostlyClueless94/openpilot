@@ -37,6 +37,9 @@ def test_mc_custom_hosts_exact_subaru_lateral_tuning_controls():
   assert 'param="MCSubaruManualYieldResumeSoftness"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardEnabled"' in source
   assert 'param="MCSubaruManualYieldReleaseGuardLevel"' in source
+  assert 'param="MCSubaruManualSteeringSoftHoldLevel"' in source
+  assert '"Manual Steering Hold"' in source
+  assert "MANUAL_STEERING_SOFT_HOLD_LABELS = [\"Off\", \"L1 Light\", \"L2 Medium\", \"L3 Strong\"]" in source
   assert 'param="MCSubaruSoftCaptureEnabled"' in source
   assert 'param="MCSubaruSoftCaptureLevel"' in source
   assert '"MAX Steering Experiment"' in source
@@ -45,6 +48,7 @@ def test_mc_custom_hosts_exact_subaru_lateral_tuning_controls():
   assert (
     "self._subaru_soft_capture,\n"
     "      self._subaru_soft_capture_strength,\n"
+    "      self._manual_steering_soft_hold,\n"
     "      self._manual_yield_release_guard_enabled,\n"
     "      self._manual_yield_release_guard_level,\n"
     "      self._subaru_advanced_dev_controls,"
@@ -73,6 +77,7 @@ def test_mc_custom_preserves_lateral_menu_hierarchy_and_max_restore_logic():
   assert 'self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)' in source
   assert 'self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)' in source
+  assert 'self._manual_steering_soft_hold.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_soft_capture.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)' in source
   assert 'self._subaru_advanced_dev_controls.set_visible(advanced_tuning_enabled)' in source
@@ -105,6 +110,7 @@ def test_params_keys_register_subaru_lateral_menu_rework_defaults():
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in source
   assert '{"MCSubaruManualYieldReleaseGuardLevel", {PERSISTENT | BACKUP, INT, "2"}}' in source
+  assert '{"MCSubaruManualSteeringSoftHoldLevel", {PERSISTENT | BACKUP, INT, "0"}}' in source
   assert '{"MCSubaruSoftCaptureLevel", {PERSISTENT | BACKUP, INT, "3"}}' in source
   assert '{"MCSubaruMadsMaxSteeringAngle", {PERSISTENT | BACKUP, INT, "180"}}' in source
   assert '{"SubaruStopAndGo", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
@@ -135,6 +141,10 @@ def test_params_metadata_describes_subaru_lateral_menu_rework():
   assert '"title": "Custom Resume Softness"' in source
   assert '"MCSubaruManualYieldReleaseGuardEnabled"' in source
   assert '"title": "Manual Yield Release Guard"' in source
+  assert '"MCSubaruManualSteeringSoftHoldLevel"' in source
+  assert '"title": "Manual Steering Hold"' in source
+  assert '"label": "L3 Strong"' in source
+  assert 'does not make initial manual-yield easier' in source
   assert '"MCSubaruSoftCaptureEnabled"' in source
   assert '"title": "Soft-Capture Engage Blend"' in source
   assert '"MCSubaruSoftCaptureLevel"' in source

@@ -19,6 +19,7 @@ from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 RESUME_SOFTNESS_LABELS = ["Standard", "Soft", "Softer", "Very Soft", "Extra Soft", "Softest", "Max Soft"]
 RELEASE_GUARD_LEVEL_LABELS = ["Light", "Medium", "Strong"]
+MANUAL_STEERING_SOFT_HOLD_LABELS = ["Off", "L1 Light", "L2 Medium", "L3 Strong"]
 ADVANCED_TUNING_DESC = "Show Subaru lateral tuning settings. Hidden controls keep their saved values active."
 ADVANCED_DEV_CONTROLS_DESC = (
   "Show experimental Subaru steering controls for controlled testing. These can make the car request much more steering "
@@ -38,6 +39,11 @@ RELEASE_GUARD_DESC = (
 RELEASE_GUARD_STRENGTH_DESC = (
   "Adjust how much confirmation Subaru waits for before reclaim begins after manual override. "
   + "Higher levels wait longer for a clean release before the existing resume ramp starts."
+)
+MANUAL_STEERING_SOFT_HOLD_DESC = (
+  "After Subaru angle-LKAS detects real manual steering, temporarily accepts softer hand pressure as continued "
+  + "manual steering. This does not make initial manual-yield easier and does not change steering rate limits, "
+  + "MADS angle caps, or MAX Steering Experiment values."
 )
 CUSTOM_YIELD_TORQUE_DESC = (
   "Enable a custom Subaru manual-yield torque threshold. When off, manual override detection falls back to the stock Subaru "
@@ -235,6 +241,16 @@ class MCCustomLayout(Widget):
       label_callback=self._format_release_guard_label,
       inline=False,
     )
+    self._manual_steering_soft_hold = option_item_sp(
+      title=lambda: tr("Manual Steering Hold"),
+      description=lambda: tr(MANUAL_STEERING_SOFT_HOLD_DESC),
+      param="MCSubaruManualSteeringSoftHoldLevel",
+      min_value=0,
+      max_value=3,
+      value_change_step=1,
+      label_callback=self._format_manual_steering_soft_hold_label,
+      inline=False,
+    )
     self._subaru_soft_capture = toggle_item_sp(
       title=lambda: tr("Soft-Capture Engage Blend"),
       description=lambda: tr(SOFT_CAPTURE_DESC),
@@ -273,6 +289,7 @@ class MCCustomLayout(Widget):
       self._manual_yield_resume_softness,
       self._subaru_soft_capture,
       self._subaru_soft_capture_strength,
+      self._manual_steering_soft_hold,
       self._manual_yield_release_guard_enabled,
       self._manual_yield_release_guard_level,
       self._subaru_advanced_dev_controls,
@@ -286,6 +303,10 @@ class MCCustomLayout(Widget):
   @staticmethod
   def _format_release_guard_label(value: int) -> str:
     return tr(RELEASE_GUARD_LEVEL_LABELS[max(0, min(value - 1, len(RELEASE_GUARD_LEVEL_LABELS) - 1))])
+
+  @staticmethod
+  def _format_manual_steering_soft_hold_label(value: int) -> str:
+    return tr(MANUAL_STEERING_SOFT_HOLD_LABELS[max(0, min(value, len(MANUAL_STEERING_SOFT_HOLD_LABELS) - 1))])
 
   @staticmethod
   def _clamp_manual_yield_torque_threshold(value: int) -> int:
@@ -388,6 +409,7 @@ class MCCustomLayout(Widget):
     self._manual_yield_resume_softness.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_enabled.set_visible(advanced_tuning_enabled)
     self._manual_yield_release_guard_level.set_visible(advanced_tuning_enabled)
+    self._manual_steering_soft_hold.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture.set_visible(advanced_tuning_enabled)
     self._subaru_soft_capture_strength.set_visible(advanced_tuning_enabled)
     self._subaru_advanced_dev_controls.set_visible(advanced_tuning_enabled)
@@ -416,6 +438,7 @@ class MCCustomLayout(Widget):
     )
     self._manual_yield_resume_softness.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualYieldResumeSoftness", 4), 6))
     self._manual_yield_release_guard_level.action_item.current_value = max(1, min(self._get_int_param("MCSubaruManualYieldReleaseGuardLevel", 2), 3))
+    self._manual_steering_soft_hold.action_item.current_value = max(0, min(self._get_int_param("MCSubaruManualSteeringSoftHoldLevel", 0), 3))
     soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self._subaru_soft_capture.action_item.set_state(soft_capture_enabled)
     self._subaru_soft_capture_strength.action_item.current_value = max(1, min(self._get_int_param("MCSubaruSoftCaptureLevel", 3), 5))

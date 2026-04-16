@@ -6,6 +6,11 @@ from opendbc.car.carlog import carlog
 from opendbc.car.lateral import AngleSteeringLimits, apply_driver_steer_torque_limits, apply_std_steer_angle_limits, common_fault_avoidance
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.subaru import subarucan
+from opendbc.car.subaru.carstate import (
+  MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT,
+  MANUAL_YIELD_TORQUE_THRESHOLD_MIN,
+  MANUAL_YIELD_TORQUE_THRESHOLD_VALUES,
+)
 from opendbc.car.subaru.values import DBC, GLOBAL_ES_ADDR, CanBus, CarControllerParams, SubaruFlags
 
 from opendbc.sunnypilot.car.subaru.stop_and_go import SnGCarController
@@ -39,6 +44,11 @@ ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT = 2
 ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_CONFIRM_FRAME_OPTIONS = [4, 8, 12]  # additional steering command frames (~80/160/240 ms)
 ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS = [3.0, 2.0, 1.0]  # deg/s
 ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_ANGLE_DELTA = 1.0  # deg
+ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN = 0
+ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MAX = 3
+ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_DEFAULT = 0
+ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FACTORS = [0.0, 0.75, 0.60, 0.50]
+ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES = [0, 25, 50, 75]
 # Soft-capture engage blending (MostlyClueless experiment — not for stable branches)
 # Maps UI level 0 (off) / 1–5 to (ramp_frames, alpha_start) pairs.
 # Level 5 is the most damped (longest ramp, gentlest start).
@@ -80,6 +90,9 @@ class CarController(CarControllerBase, SnGCarController):
     self.mc_subaru_manual_yield_resume_softness = ANGLE_DRIVER_OVERRIDE_RAMP_SOFTNESS_DEFAULT
     self.mc_subaru_manual_yield_release_guard_enabled = False
     self.mc_subaru_manual_yield_release_guard_level = ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_DEFAULT
+    self.mc_subaru_manual_steering_soft_hold_level = ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_DEFAULT
+    self.mc_subaru_manual_yield_torque_threshold_enabled = False
+    self.mc_subaru_manual_yield_torque_threshold = MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT
     self.mc_subaru_soft_capture_enabled = False
     self.mc_subaru_soft_capture_level = 3
     self.mc_subaru_mads_tighter_turns_enabled = False
@@ -101,6 +114,8 @@ class CarController(CarControllerBase, SnGCarController):
     self.angle_driver_override_release_guard_required_frames = 0
     self.angle_driver_override_release_guard_reference_angle = 0.0
     self.angle_driver_override_release_guard_rate_threshold = 0.0
+    self.angle_driver_override_soft_hold_frames = 0
+    self.angle_driver_override_soft_hold_threshold = 0
     self.lat_active_prev = False
     self.soft_capture_frame = -(SOFT_CAPTURE_LEVEL_PARAMS[-1][0] + 1)
     self._update_params()
@@ -146,6 +161,36 @@ class CarController(CarControllerBase, SnGCarController):
   def _get_release_guard_rate_threshold(level: int) -> float:
     idx = int(np.clip(level, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN, ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX)) - 1
     return ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_RATE_THRESHOLDS[idx]
+
+  @staticmethod
+  def _clamp_manual_yield_torque_threshold(threshold: int) -> int:
+    return min(
+      MANUAL_YIELD_TORQUE_THRESHOLD_VALUES,
+      key=lambda value: (abs(value - threshold), value),
+    )
+
+  @staticmethod
+  def _get_soft_hold_threshold(active_threshold: int, level: int) -> int:
+    if level <= ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN:
+      return active_threshold
+
+    clamped_level = int(np.clip(
+      level,
+      ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN,
+      ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MAX,
+    ))
+    scaled_threshold = active_threshold * ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FACTORS[clamped_level]
+    rounded_threshold = int(np.floor(scaled_threshold / 5.0 + 0.5) * 5)
+    return int(np.clip(rounded_threshold, MANUAL_YIELD_TORQUE_THRESHOLD_MIN, active_threshold))
+
+  def _get_stock_manual_yield_torque_threshold(self) -> int:
+    return 75 if self.CP.flags & SubaruFlags.PREGLOBAL else MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT
+
+  def _get_active_manual_yield_torque_threshold(self) -> int:
+    if not self.mc_subaru_manual_yield_torque_threshold_enabled:
+      return self._get_stock_manual_yield_torque_threshold()
+
+    return self.mc_subaru_manual_yield_torque_threshold
 
   def _manual_yield_handoff_enabled(self) -> bool:
     return self.mc_subaru_manual_yield_resume_softness_enabled or self.mc_subaru_manual_yield_release_guard_enabled
@@ -311,6 +356,15 @@ class CarController(CarControllerBase, SnGCarController):
       ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MIN,
       ANGLE_DRIVER_OVERRIDE_RELEASE_GUARD_LEVEL_MAX,
     ))
+    self.mc_subaru_manual_steering_soft_hold_level = int(np.clip(
+      self._get_int_param("MCSubaruManualSteeringSoftHoldLevel", ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_DEFAULT),
+      ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN,
+      ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MAX,
+    ))
+    self.mc_subaru_manual_yield_torque_threshold_enabled = self._get_bool_param("MCSubaruManualYieldTorqueThresholdEnabled")
+    self.mc_subaru_manual_yield_torque_threshold = self._clamp_manual_yield_torque_threshold(
+      self._get_int_param("MCSubaruManualYieldTorqueThreshold", MANUAL_YIELD_TORQUE_THRESHOLD_DEFAULT)
+    )
     self.mc_subaru_soft_capture_enabled = self._get_bool_param("MCSubaruSoftCaptureEnabled")
     self.mc_subaru_soft_capture_level = int(np.clip(
       self._get_int_param("MCSubaruSoftCaptureLevel", 3),
@@ -346,6 +400,10 @@ class CarController(CarControllerBase, SnGCarController):
     self.angle_driver_override_release_guard_required_frames = 0
     self.angle_driver_override_release_guard_reference_angle = 0.0
     self.angle_driver_override_release_guard_rate_threshold = 0.0
+
+  def _reset_angle_driver_override_soft_hold(self):
+    self.angle_driver_override_soft_hold_frames = 0
+    self.angle_driver_override_soft_hold_threshold = 0
 
   def _reset_angle_driver_override_state(self):
     self.angle_driver_override_hold_frames = 0
@@ -390,6 +448,35 @@ class CarController(CarControllerBase, SnGCarController):
       return True
 
     return False
+
+  def _update_angle_driver_override_soft_hold(self, steering_pressed: bool, lkas_allowed: bool,
+                                             steering_torque: float) -> tuple[bool, int, int]:
+    active_threshold = self._get_active_manual_yield_torque_threshold()
+    level = self.mc_subaru_manual_steering_soft_hold_level
+    soft_threshold = self._get_soft_hold_threshold(active_threshold, level)
+
+    if not lkas_allowed or level <= ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_LEVEL_MIN:
+      self._reset_angle_driver_override_soft_hold()
+      return steering_pressed, active_threshold, soft_threshold
+
+    if steering_pressed:
+      self.angle_driver_override_soft_hold_frames = ANGLE_DRIVER_OVERRIDE_SOFT_HOLD_FRAMES[level]
+      self.angle_driver_override_soft_hold_threshold = soft_threshold
+      return True, active_threshold, soft_threshold
+
+    soft_pressure_active = (
+      self.angle_driver_override_soft_hold_frames > 0
+      and abs(steering_torque) >= soft_threshold
+    )
+    if self.angle_driver_override_soft_hold_frames > 0:
+      self.angle_driver_override_soft_hold_frames -= 1
+
+    if self.angle_driver_override_soft_hold_frames <= 0:
+      self.angle_driver_override_soft_hold_threshold = 0
+    else:
+      self.angle_driver_override_soft_hold_threshold = soft_threshold
+
+    return soft_pressure_active, active_threshold, soft_threshold
 
   def _update_angle_driver_override_state(self, steering_pressed: bool, lkas_allowed: bool,
                                           measured_angle: float, steering_rate: float) -> tuple[bool, bool]:
@@ -469,14 +556,19 @@ class CarController(CarControllerBase, SnGCarController):
     )
     lkas_allowed = CC.latActive and (CC.enabled or not mads_only or mads_only_ok) and \
       CS.out.gearShifter == structs.CarState.GearShifter.drive and not CS.out.standstill
-    angle_driver_override, ramp_will_start = self._update_angle_driver_override_state(
+    effective_steering_pressed, manual_yield_threshold, soft_hold_threshold = self._update_angle_driver_override_soft_hold(
       CS.out.steeringPressed,
+      lkas_allowed,
+      CS.out.steeringTorque,
+    )
+    angle_driver_override, ramp_will_start = self._update_angle_driver_override_state(
+      effective_steering_pressed,
       lkas_allowed,
       CS.out.steeringAngleDeg,
       CS.out.steeringRateDeg,
     )
     mads_only_inhibited = mads_only and not mads_only_ok
-    self.subaru_manual_yield_full_release_active = lkas_allowed and (CS.out.steeringPressed or angle_driver_override)
+    self.subaru_manual_yield_full_release_active = lkas_allowed and (effective_steering_pressed or angle_driver_override)
     manual_yield_active = angle_driver_override or self.subaru_manual_yield_full_release_active
     lkas_request = lkas_allowed and not manual_yield_active
     self.subaru_effective_lkas_active = CC.latActive and not self.subaru_manual_yield_full_release_active and not mads_only_inhibited
@@ -507,7 +599,24 @@ class CarController(CarControllerBase, SnGCarController):
       self.angle_driver_override_hold_frames > 0,
       (
         f"angle driver override hold active={self.angle_driver_override_hold_frames > 0} "
-        + f"frames={self.angle_driver_override_hold_frames} steeringPressed={CS.out.steeringPressed}"
+        + f"frames={self.angle_driver_override_hold_frames} steeringPressed={CS.out.steeringPressed} "
+        + f"effectiveSteeringPressed={effective_steering_pressed}"
+      ),
+    )
+    self._log_transition(
+      "angle_driver_override_soft_hold",
+      (
+        self.mc_subaru_manual_steering_soft_hold_level,
+        self.angle_driver_override_soft_hold_frames,
+        effective_steering_pressed,
+        manual_yield_threshold,
+        soft_hold_threshold,
+      ),
+      (
+        f"angle driver override soft hold level={self.mc_subaru_manual_steering_soft_hold_level} "
+        + f"frames={self.angle_driver_override_soft_hold_frames} steeringPressed={CS.out.steeringPressed} "
+        + f"effectiveSteeringPressed={effective_steering_pressed} steeringTorque={CS.out.steeringTorque:.2f} "
+        + f"activeThreshold={manual_yield_threshold} softThreshold={soft_hold_threshold}"
       ),
     )
     self._log_transition(
@@ -554,6 +663,7 @@ class CarController(CarControllerBase, SnGCarController):
       (
         f"angle manual yield full release active={self.subaru_manual_yield_full_release_active} "
         + f"steeringPressed={CS.out.steeringPressed} "
+        + f"effectiveSteeringPressed={effective_steering_pressed} "
         + f"manualYieldActive={manual_yield_active} effectiveLkasState={self.subaru_effective_lkas_active}"
       ),
     )
@@ -645,7 +755,8 @@ class CarController(CarControllerBase, SnGCarController):
         + f"madsFaultGuardActive={mads_fault_guard_active} madsFaultGuardReason={mads_fault_guard_reason} "
         + f"measuredRate={CS.out.steeringRateDeg:.2f} "
         + f"handoffActive={handoff_active} rampActive={manual_override_ramp_active} "
-        + f"manualYieldActive={manual_yield_active} "
+        + f"manualYieldActive={manual_yield_active} steeringTorque={CS.out.steeringTorque:.2f} "
+        + f"effectiveSteeringPressed={effective_steering_pressed} "
         + f"fullReleaseActive={self.subaru_manual_yield_full_release_active} effectiveLkasState={self.subaru_effective_lkas_active} "
         + f"latActive={CC.latActive} enabled={CC.enabled}"
       ),
