@@ -44,7 +44,7 @@ def test_mc_custom_hosts_exact_subaru_lateral_tuning_controls():
   assert 'param="MCSubaruSoftCaptureLevel"' in source
   assert '"MAX Steering Experiment"' in source
   assert '"MCSubaruMaxSteeringExperiment"' in source
-  assert '"MCSubaruMaxSteeringExperimentSnapshot"' in source
+  assert 'param="MCSubaruMaxSteeringExperiment"' in source
   assert (
     "self._subaru_soft_capture,\n"
     "      self._subaru_soft_capture_strength,\n"
@@ -68,7 +68,7 @@ def test_mc_custom_hosts_exact_subaru_lateral_tuning_controls():
     assert param not in source
 
 
-def test_mc_custom_preserves_lateral_menu_hierarchy_and_max_restore_logic():
+def test_mc_custom_preserves_lateral_menu_hierarchy_and_simple_max_toggle_logic():
   source = _read(MC_CUSTOM)
   assert 'def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool, advanced_dev_controls_enabled: bool) -> None:' in source
   assert 'self._manual_yield_torque_threshold_enabled.set_visible(advanced_tuning_enabled)' in source
@@ -88,16 +88,17 @@ def test_mc_custom_preserves_lateral_menu_hierarchy_and_max_restore_logic():
   assert 'self._subaru_turn_in_rate_level.set_visible' not in source
   assert 'self._subaru_unwind_rate_level.set_visible' not in source
 
-  assert 'def _snapshot_max_steering_experiment(self) -> dict:' in source
-  assert 'def _read_max_steering_experiment_snapshot(self) -> dict | None:' in source
   assert 'def _enable_max_steering_experiment(self) -> None:' in source
   assert 'def _disable_max_steering_experiment(self) -> None:' in source
-  assert 'self._params.remove(MAX_STEERING_EXPERIMENT_SNAPSHOT)' in source
+  assert 'MAX_STEERING_EXPERIMENT_DEFAULTS' in source
+  assert 'MAX_STEERING_EXPERIMENT_SNAPSHOT' not in source
+  assert 'ConfirmDialog(' not in source
   assert '"MCSubaruMadsTighterTurnsEnabled": True' in source
   assert '"MCSubaruMadsMaxSteeringAngle": 199' in source
   assert '"MCSubaruTurnInRateLevel": 20' in source
   assert '"MCSubaruUnwindRateLevel": 20' in source
   assert '"MCSubaruManualYieldTorqueThreshold": 500' in source
+  assert '"MCSubaruManualYieldTorqueThreshold": ("int", 80)' not in source
 
 
 def test_params_keys_register_subaru_lateral_menu_rework_defaults():
@@ -105,7 +106,7 @@ def test_params_keys_register_subaru_lateral_menu_rework_defaults():
   assert '{"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruShowAdvancedDevControls", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
   assert '{"MCSubaruMaxSteeringExperiment", {PERSISTENT | BACKUP, BOOL, "0"}}' in source
-  assert '{"MCSubaruMaxSteeringExperimentSnapshot", {PERSISTENT | BACKUP | DONT_LOG, JSON}}' in source
+  assert "MCSubaruMaxSteeringExperimentSnapshot" not in source
   assert '{"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in source
@@ -128,6 +129,8 @@ def test_params_metadata_describes_subaru_lateral_menu_rework():
   assert '"MCSubaruMaxSteeringExperiment"' in source
   assert '"title": "MAX Steering Experiment"' in source
   assert 'MADS steering angle cap to 199' in source
+  assert 'Turning it off directly restores the default steering test values' in source
+  assert 'keeping your saved torque threshold value' in source
   assert '180 deg is the default turning request limit' in source
   assert 'turn-in rate to L20 500 deg/s' in source
   assert 'unwind rate to L20 500 deg/s' in source

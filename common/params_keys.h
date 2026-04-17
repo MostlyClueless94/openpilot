@@ -159,7 +159,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruShowAdvancedDevControls", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruMaxSteeringExperiment", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"MCSubaruMaxSteeringExperimentSnapshot", {PERSISTENT | BACKUP | DONT_LOG, JSON}},
     {"MCSubaruMatchVehicleSpeedometer", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MCSubaruManualYieldTorqueThresholdEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}},

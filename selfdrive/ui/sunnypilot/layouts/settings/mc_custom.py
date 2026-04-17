@@ -4,16 +4,12 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-import json
-
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.bp.widgets.section_header import SectionHeader
 from openpilot.selfdrive.ui.sunnypilot.onroad.path_colors import CUSTOM_MODEL_PATH_COLOR_LABELS
-from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, option_item_sp, toggle_item_sp
-from openpilot.system.ui.widgets import DialogResult, Widget
-from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
+from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 
@@ -89,14 +85,10 @@ MATCH_VEHICLE_SPEEDOMETER_DESC = (
   + "Turn it off to show true wheel-speed-based speed instead."
 )
 MAX_STEERING_EXPERIMENT_DESC = (
-  "Apply the maximum Subaru MADS-only steering test preset. Enabling stores your current steering cap, turn-in rate, "
-  + "unwind rate, and manual-yield torque threshold so they can be restored when this is turned off."
-)
-MAX_STEERING_EXPERIMENT_WARNING = (
-  "<p><b>MAX Steering Experiment</b></p>"
-  "<p>This is experimental and designed only for controlled steering-capability testing.</p>"
-  "<p>It sets the MADS steering angle cap to 199, turn-in and unwind to L20 500 deg/s, and manual yield torque to 500.</p>"
-  "<p>It may produce LKAS faults in the vehicle. Do not use it outside controlled environments.</p>"
+  "Apply the maximum Subaru MADS-only steering test preset. Turning this off directly restores the default steering "
+  + "test values: MADS angle cap off/default, turn-in and unwind back to stock, and custom yield torque off while "
+  + "keeping your saved torque threshold value."
+  + " Controlled testing only; this can still produce LKAS faults if used carelessly."
 )
 MANUAL_YIELD_TORQUE_THRESHOLD_MIN = 40
 MANUAL_YIELD_TORQUE_THRESHOLD_STEP = 5
@@ -107,14 +99,12 @@ MANUAL_YIELD_TORQUE_THRESHOLD_VALUES = (
   *range(200, MANUAL_YIELD_TORQUE_THRESHOLD_MAX + 50, 50),
 )
 MANUAL_YIELD_TORQUE_THRESHOLD_VALUE_MAP = {idx: value for idx, value in enumerate(MANUAL_YIELD_TORQUE_THRESHOLD_VALUES)}
-MAX_STEERING_EXPERIMENT_SNAPSHOT = "MCSubaruMaxSteeringExperimentSnapshot"
-MAX_STEERING_EXPERIMENT_PARAMS = {
+MAX_STEERING_EXPERIMENT_DEFAULTS = {
   "MCSubaruMadsTighterTurnsEnabled": ("bool", False),
   "MCSubaruMadsMaxSteeringAngle": ("int", 180),
   "MCSubaruTurnInRateLevel": ("int", 0),
   "MCSubaruUnwindRateLevel": ("int", 0),
   "MCSubaruManualYieldTorqueThresholdEnabled": ("bool", False),
-  "MCSubaruManualYieldTorqueThreshold": ("int", 80),
 }
 MAX_STEERING_EXPERIMENT_VALUES = {
   "MCSubaruMadsTighterTurnsEnabled": True,
@@ -271,6 +261,7 @@ class MCCustomLayout(Widget):
     self._subaru_max_steering_experiment = toggle_item_sp(
       title=lambda: tr("MAX Steering Experiment"),
       description=lambda: tr(MAX_STEERING_EXPERIMENT_DESC),
+      param="MCSubaruMaxSteeringExperiment",
       initial_state=self._get_bool_param("MCSubaruMaxSteeringExperiment"),
       callback=self._on_max_steering_experiment_toggled,
     )
@@ -337,27 +328,8 @@ class MCCustomLayout(Widget):
     idx = max(0, min(value - 1, len(SOFT_CAPTURE_STRENGTH_LABELS) - 1))
     return tr(SOFT_CAPTURE_STRENGTH_LABELS[idx])
 
-  def _snapshot_max_steering_experiment(self) -> dict:
-    snapshot = {}
-    for key, (kind, default) in MAX_STEERING_EXPERIMENT_PARAMS.items():
-      snapshot[key] = self._get_bool_param(key, bool(default)) if kind == "bool" else self._get_int_param(key, int(default))
-    self._params.put(MAX_STEERING_EXPERIMENT_SNAPSHOT, json.dumps(snapshot, separators=(",", ":")))
-    return snapshot
-
-  def _read_max_steering_experiment_snapshot(self) -> dict | None:
-    raw_snapshot = self._params.get(MAX_STEERING_EXPERIMENT_SNAPSHOT)
-    if isinstance(raw_snapshot, bytes):
-      raw_snapshot = raw_snapshot.decode("utf-8", errors="ignore")
-    if not raw_snapshot:
-      return None
-    try:
-      snapshot = json.loads(raw_snapshot)
-    except (TypeError, ValueError):
-      return None
-    return snapshot if isinstance(snapshot, dict) else None
-
   def _put_max_steering_experiment_values(self, values: dict) -> None:
-    for key, (kind, default) in MAX_STEERING_EXPERIMENT_PARAMS.items():
+    for key, (kind, default) in MAX_STEERING_EXPERIMENT_DEFAULTS.items():
       value = values.get(key, default)
       if kind == "bool":
         self._params.put_bool(key, bool(value))
@@ -369,36 +341,18 @@ class MCCustomLayout(Widget):
         self._params.put(key, str(value))
 
   def _enable_max_steering_experiment(self) -> None:
-    self._snapshot_max_steering_experiment()
     self._put_max_steering_experiment_values(MAX_STEERING_EXPERIMENT_VALUES)
     self._params.put_bool("MCSubaruMaxSteeringExperiment", True)
 
   def _disable_max_steering_experiment(self) -> None:
-    self._put_max_steering_experiment_values(self._read_max_steering_experiment_snapshot() or {})
+    self._put_max_steering_experiment_values({})
     self._params.put_bool("MCSubaruMaxSteeringExperiment", False)
-    self._params.remove(MAX_STEERING_EXPERIMENT_SNAPSHOT)
 
   def _on_max_steering_experiment_toggled(self, enabled: bool) -> None:
-    if not enabled:
+    if enabled:
+      self._enable_max_steering_experiment()
+    else:
       self._disable_max_steering_experiment()
-      return
-
-    self._subaru_max_steering_experiment.action_item.set_state(False)
-
-    def confirm_max_steering_experiment(result: DialogResult) -> None:
-      if result == DialogResult.CONFIRM:
-        self._enable_max_steering_experiment()
-      self._subaru_max_steering_experiment.action_item.set_state(
-        self._get_bool_param("MCSubaruMaxSteeringExperiment")
-      )
-
-    gui_app.push_widget(ConfirmDialog(
-      MAX_STEERING_EXPERIMENT_WARNING,
-      tr("Enable"),
-      tr("Cancel"),
-      rich=True,
-      callback=confirm_max_steering_experiment,
-    ))
 
   def _set_subaru_section_visibility(self, advanced_tuning_enabled: bool, advanced_dev_controls_enabled: bool) -> None:
     self._subaru_header.set_visible(True)

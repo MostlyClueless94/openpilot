@@ -66,6 +66,16 @@ class SmallSlider(Widget):
     activated_pos = -self._bg_txt.width + self._circle_bg_txt.width
     return min(max(-self._scroll_x_circle_filter.x / abs(activated_pos), 0.0), 1.0)
 
+  def _circle_button_rect(self) -> rl.Rectangle:
+    bg_txt_x = self._rect.x + (self._rect.width - self._bg_txt.width) / 2
+    bg_txt_y = self._rect.y + (self._rect.height - self._circle_bg_txt.height) / 2
+    return rl.Rectangle(
+      bg_txt_x + self._bg_txt.width - self._circle_bg_txt.width + self._scroll_x_circle_filter.x - self.HORIZONTAL_PADDING * 2,
+      bg_txt_y,
+      self._circle_bg_txt.width + self.HORIZONTAL_PADDING * 2,
+      self._circle_bg_txt.height,
+    )
+
   def _on_confirm(self):
     if self._confirm_callback:
       self._confirm_callback()
@@ -75,12 +85,7 @@ class SmallSlider(Widget):
 
     if mouse_event.left_pressed:
       # touch rect goes to the padding
-      circle_button_rect = rl.Rectangle(
-        self._rect.x + (self._rect.width - self._circle_bg_txt.width) + self._scroll_x_circle_filter.x - self.HORIZONTAL_PADDING * 2,
-        self._rect.y,
-        self._circle_bg_txt.width + self.HORIZONTAL_PADDING * 2,
-        self._rect.height,
-      )
+      circle_button_rect = self._circle_button_rect()
       if rl.check_collision_point_rec(mouse_event.pos, circle_button_rect):
         self._start_x_circle = mouse_event.pos.x
         self._is_dragging_circle = True

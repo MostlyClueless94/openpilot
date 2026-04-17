@@ -62,7 +62,6 @@ class TestSubaruCarController(unittest.TestCase):
     "MCSubaruManualSteeringSoftHoldLevel",
     "MCSubaruShowAdvancedDevControls",
     "MCSubaruMaxSteeringExperiment",
-    "MCSubaruMaxSteeringExperimentSnapshot",
     "MCSubaruSoftCaptureEnabled",
     "MCSubaruSoftCaptureLevel",
     "MCSubaruMadsTighterTurnsEnabled",

@@ -80,8 +80,9 @@ def test_tici_mc_custom_subaru_lateral_menu_matches_requested_controls():
 
   assert '"MAX Steering Experiment"' in source
   assert '"MCSubaruMaxSteeringExperiment"' in source
-  assert '"MCSubaruMaxSteeringExperimentSnapshot"' in source
-  assert "ConfirmDialog(" in source
+  assert 'param="MCSubaruMaxSteeringExperiment"' in source
+  assert "ConfirmDialog(" not in source
+  assert "MAX_STEERING_EXPERIMENT_DEFAULTS" in source
   assert "MAX_STEERING_EXPERIMENT_VALUES" in source
   assert '"MCSubaruMadsTighterTurnsEnabled": True' in source
   assert '"MCSubaruMadsMaxSteeringAngle": 199' in source
@@ -89,8 +90,10 @@ def test_tici_mc_custom_subaru_lateral_menu_matches_requested_controls():
   assert '"MCSubaruUnwindRateLevel": 20' in source
   assert '"MCSubaruManualYieldTorqueThresholdEnabled": True' in source
   assert '"MCSubaruManualYieldTorqueThreshold": 500' in source
-  assert 'may produce LKAS faults' in source
-  assert 'controlled environments' in source
+  assert '"MCSubaruManualYieldTorqueThreshold": ("int", 80)' not in source
+  assert 'Turning this off directly restores the default steering' in source
+  assert 'keeping your saved torque threshold value' in source
+  assert 'Controlled testing only' in source
 
   assert 'param="MCSubaruManualYieldFilteredDetectionEnabled"' not in source
   assert '"Filtered Yield Detection"' not in source
@@ -153,9 +156,10 @@ def test_mici_subaru_layout_exact_lateral_menu_and_max_experiment():
   assert 'BigParamControl("show advanced\\ndev controls", "MCSubaruShowAdvancedDevControls")' in source
   assert 'BigToggle(' in source
   assert '"MAX steering\\nexperiment"' in source
-  assert 'BigConfirmationDialogV2(' in source
-  assert 'may cause LKAS faults' in source
-  assert 'slide to enable' in source
+  assert 'BigConfirmationDialogV2(' not in source
+  assert 'slide to enable' not in source
+  assert 'MAX_STEERING_EXPERIMENT_DEFAULTS' in source
+  assert '"MCSubaruManualYieldTorqueThreshold": ("int", 80)' not in source
   assert '"MCSubaruMadsMaxSteeringAngle": 199' in source
   assert '"MCSubaruTurnInRateLevel": 20' in source
   assert '"MCSubaruUnwindRateLevel": 20' in source
@@ -198,7 +202,7 @@ def test_subaru_params_and_metadata_match_lateral_menu_rework():
   assert '{"MCSubaruAdvancedTuning", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruShowAdvancedDevControls", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
   assert '{"MCSubaruMaxSteeringExperiment", {PERSISTENT | BACKUP, BOOL, "0"}}' in params_source
-  assert '{"MCSubaruMaxSteeringExperimentSnapshot", {PERSISTENT | BACKUP | DONT_LOG, JSON}}' in params_source
+  assert "MCSubaruMaxSteeringExperimentSnapshot" not in params_source
   assert '{"MCSubaruManualYieldFilteredDetectionEnabled", {PERSISTENT | BACKUP, BOOL, "1"}}' in params_source
   assert '{"MCSubaruManualYieldTorqueThreshold", {PERSISTENT | BACKUP, INT, "80"}}' in params_source
   assert '{"MCSubaruManualYieldResumeSoftness", {PERSISTENT | BACKUP, INT, "4"}}' in params_source
@@ -215,6 +219,8 @@ def test_subaru_params_and_metadata_match_lateral_menu_rework():
   assert '"title": "Show Advanced Dev Controls"' in metadata_source
   assert '"MCSubaruMaxSteeringExperiment"' in metadata_source
   assert '"title": "MAX Steering Experiment"' in metadata_source
+  assert 'Turning it off directly restores the default steering test values' in metadata_source
+  assert 'keeping your saved torque threshold value' in metadata_source
   assert '"MCSubaruManualSteeringSoftHoldLevel"' in metadata_source
   assert '"title": "Manual Steering Hold"' in metadata_source
   assert '"label": "L1 Light"' in metadata_source
