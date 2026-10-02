@@ -1,24 +1,7 @@
-# SubiPilot openpilot mirror
+# BluePilot custom1 installer bridge
 
-This repository is the installer-facing mirror for the public SubiPilot branches from:
+Use https://installer.comma.ai/MostlyClueless94/custom1 in Custom Software.
 
-- `https://github.com/MostlyClueless94/sunnypilot`
+This branch bootstraps the BluePilot prototype at https://github.com/MostlyClueless94/bluepilot/tree/custom1, pinned to 021405516531eb53e9ab2a2828355965cfa74c2c. On first launch it fetches that branch, verifies the commit, replaces this bootstrap checkout with the prototype, initializes submodules, and runs the normal BluePilot launcher.
 
-Current public branch surface:
-
-- `subi-1.0` for the current stable public release
-- `subi-staging` for broad public testing ahead of the next release
-- `subi-0.9` for the previous stable public release
-- `MostlyClueless` for personal testing installs
-
-Canonical install URLs:
-
-- `https://installer.comma.ai/MostlyClueless94/subi-1.0`
-- `https://installer.comma.ai/MostlyClueless94/subi-0.9`
-- `https://installer.comma.ai/MostlyClueless94/subi-staging`
-- `https://installer.comma.ai/MostlyClueless94/MostlyClueless`
-
-The default branch contains only repository administration files.
-Public install branches are mirrored separately and should match the source branch exactly.
-
-The separate `long` branch remains experimental and is not mirrored here as part of the public SubiPilot release flow.
+The Concurrent Acceleration Prototype toggle is OFF by default. Vehicle acceleration arbitration and device installation have not been validated.
