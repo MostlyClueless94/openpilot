@@ -4,7 +4,7 @@ set -euo pipefail
 
 install_bluepilot() {
   cd "$(dirname "$0")"
-  local expected_commit="021405516531eb53e9ab2a2828355965cfa74c2c"
+  local expected_commit="6e91caad42a466e0526fe3cb5fa2a3266effa909"
   git remote set-url origin https://github.com/MostlyClueless94/bluepilot.git
   git config remote.origin.fetch '+refs/heads/custom1:refs/remotes/origin/custom1'
   git fetch --depth=1 origin custom1

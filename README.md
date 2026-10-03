@@ -1,7 +1,13 @@
 # BluePilot custom1 installer bridge
 
-Use https://installer.comma.ai/MostlyClueless94/custom1 in Custom Software.
+Enter https://installer.comma.ai/MostlyClueless94/custom1 in Custom Software.
 
-This branch bootstraps the BluePilot prototype at https://github.com/MostlyClueless94/bluepilot/tree/custom1, pinned to 021405516531eb53e9ab2a2828355965cfa74c2c. On first launch it fetches that branch, verifies the commit, replaces this bootstrap checkout with the prototype, initializes submodules, and runs the normal BluePilot launcher.
+The standard comma installer clones this bootstrap branch. On first launch it downloads MostlyClueless94/bluepilot custom1, verifies commit 6e91caad42a466e0526fe3cb5fa2a3266effa909, replaces the bootstrap checkout, initializes submodules and launches BluePilot.
 
-The Concurrent Acceleration Prototype toggle is OFF by default. Vehicle acceleration arbitration and device installation have not been validated.
+Both prototype settings are OFF by default, at Settings → BluePilot → Longitudinal Tuning:
+- Concurrent Acceleration Prototype: bounded gas/cruise overlap in Experimental Mode.
+- Follow Vehicle Speed Limits: camera-sign-based saved speed, including while cruise is paused. Set cruise to the recognized limit to arm. Manual +/- pauses following. Uses vehicle data without maps; Ford's dashboard can differ.
+
+Enable sunnypilot Longitudinal Control (Alpha). For speed-limit following, use Cruise → Speed Limit → Info and Customize Source → Car Only. Restart after enabling a prototype setting. Longitudinal/Lateral Maneuver Mode and Joystick Debug Mode must be OFF.
+
+Software/firmware focused checks pass; on-device and vehicle validation of the speed-limit feature remains outstanding. Source details: docs/BP_VEHICLE_SPEED_LIMIT_CRUISE.md in the BluePilot branch.
