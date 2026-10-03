@@ -2,7 +2,7 @@
 
 Enter https://installer.comma.ai/MostlyClueless94/custom1 in Custom Software.
 
-The standard comma installer clones this bootstrap branch. On first launch it downloads MostlyClueless94/bluepilot custom1, verifies commit 8e9d9c0f4711dace8aba613875f7110b6ae80497, replaces the bootstrap checkout, initializes submodules and launches BluePilot.
+The standard comma installer clones this bootstrap branch. On first launch it downloads MostlyClueless94/bluepilot custom1, verifies commit 0f2451f174baa8544abefa2a1ead95dc83ee3607, replaces the bootstrap checkout, initializes submodules and launches BluePilot.
 
 Both prototype settings are OFF by default, at Settings → BluePilot → Longitudinal Tuning:
 - Concurrent Acceleration Prototype: bounded gas/cruise overlap in Experimental Mode.
